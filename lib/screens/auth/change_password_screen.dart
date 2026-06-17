@@ -74,7 +74,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.warning.withOpacity(0.08),
+                        color: AppColors.warning.withAlpha(20),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -113,9 +113,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.08),
+                        color: AppColors.error.withAlpha(20),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.error.withOpacity(0.15), width: 1),
+                        border: Border.all(color: AppColors.error.withAlpha(38), width: 1),
                       ),
                       child: Row(
                         children: [

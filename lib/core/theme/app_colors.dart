@@ -35,12 +35,12 @@ class AppColors {
   // Soft Shadows (Low opacity, high blur)
   static final List<BoxShadow> lightShadow = [
     BoxShadow(
-      color: Colors.black.withOpacity(0.03),
+      color: Colors.black.withAlpha(8),
       blurRadius: 20,
       offset: const Offset(0, 8),
     ),
     BoxShadow(
-      color: Colors.black.withOpacity(0.01),
+      color: Colors.black.withAlpha(3),
       blurRadius: 8,
       offset: const Offset(0, 2),
     ),
@@ -48,7 +48,7 @@ class AppColors {
 
   static final List<BoxShadow> darkShadow = [
     BoxShadow(
-      color: Colors.black.withOpacity(0.2),
+      color: Colors.black.withAlpha(51),
       blurRadius: 24,
       offset: const Offset(0, 8),
     ),

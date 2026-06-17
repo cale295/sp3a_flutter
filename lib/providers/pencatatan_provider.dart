@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/pencatatan_meteran_model.dart';
+import '../models/user_model.dart';
+import 'database_provider.dart';
 
 class PencatatanService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -76,6 +78,15 @@ class PencatatanService {
 
     return PencatatanMeteranModel.fromJson(response);
   }
+
+  Future<List<PencatatanMeteranModel>> getReadingsForPeriod(int month, int year) async {
+    final response = await _client
+        .from('pencatatan_meteran')
+        .select()
+        .eq('periode_bulan', month)
+        .eq('periode_tahun', year);
+    return (response as List).map((json) => PencatatanMeteranModel.fromJson(json)).toList();
+  }
 }
 
 final pencatatanServiceProvider = Provider<PencatatanService>((ref) {
@@ -88,4 +99,35 @@ final customerReadingsProvider = FutureProvider.family.autoDispose<List<Pencatat
 
 final allReadingsProvider = FutureProvider.autoDispose<List<PencatatanMeteranModel>>((ref) async {
   return ref.watch(pencatatanServiceProvider).getAllReadings();
+});
+
+class PelangganStatusModel {
+  final UserModel pelanggan;
+  final PencatatanMeteranModel? reading;
+
+  PelangganStatusModel({
+    required this.pelanggan,
+    this.reading,
+  });
+
+  bool get hasInputMandiri => reading != null;
+}
+
+final readingsForCurrentPeriodProvider = FutureProvider.autoDispose<List<PencatatanMeteranModel>>((ref) async {
+  final now = DateTime.now();
+  return ref.watch(pencatatanServiceProvider).getReadingsForPeriod(now.month, now.year);
+});
+
+final pelangganWithStatusProvider = FutureProvider.autoDispose<List<PelangganStatusModel>>((ref) async {
+  final pelangganList = await ref.watch(pelangganListProvider.future);
+  final readings = await ref.watch(readingsForCurrentPeriodProvider.future);
+
+  final readingsMap = {for (var r in readings) r.pelangganId: r};
+
+  return pelangganList.map((pelanggan) {
+    return PelangganStatusModel(
+      pelanggan: pelanggan,
+      reading: readingsMap[pelanggan.id],
+    );
+  }).toList();
 });

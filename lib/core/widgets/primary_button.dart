@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+/// Accessible primary button following the Inclusive Modern Design system.
+/// Default height is 54px for large, easy-to-tap touch targets.
+/// Font size is 15pt for clear readability for both senior and young users.
 class PrimaryButton extends StatelessWidget {
   final String text;
   final VoidCallback? onPressed;
@@ -20,14 +23,14 @@ class PrimaryButton extends StatelessWidget {
     this.icon,
     this.color,
     this.width,
-    this.height = 48, // Compact height matching modern grids
+    this.height = 54, // Accessible minimum tap target
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     final buttonColor = color ?? (isDark ? AppColors.primaryLight : AppColors.primary);
 
     Widget content = Row(
@@ -37,17 +40,17 @@ class PrimaryButton extends StatelessWidget {
         if (icon != null && !isLoading) ...[
           Icon(
             icon,
-            size: 18,
+            size: 20,
             color: isOutline ? buttonColor : Colors.white,
           ),
           const SizedBox(width: 8),
         ],
         if (isLoading)
           SizedBox(
-            width: 18,
-            height: 18,
+            width: 20,
+            height: 20,
             child: CircularProgressIndicator(
-              strokeWidth: 2,
+              strokeWidth: 2.2,
               valueColor: AlwaysStoppedAnimation<Color>(
                 isOutline ? buttonColor : Colors.white,
               ),
@@ -60,10 +63,10 @@ class PrimaryButton extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: 15, // Readable for seniors
+                fontWeight: FontWeight.w700,
                 color: isOutline ? buttonColor : Colors.white,
-                letterSpacing: 0.2,
+                letterSpacing: 0.1,
               ),
             ),
           ),
@@ -71,7 +74,7 @@ class PrimaryButton extends StatelessWidget {
     );
 
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16), // Rounded modern edges
+      borderRadius: BorderRadius.circular(16),
     );
 
     return SizedBox(
@@ -84,7 +87,7 @@ class PrimaryButton extends StatelessWidget {
                 side: BorderSide(color: buttonColor, width: 1.5),
                 shape: shape,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
               child: content,
             )
@@ -93,10 +96,10 @@ class PrimaryButton extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: buttonColor,
                 foregroundColor: Colors.white,
-                elevation: 0, // Flat visual design
+                elevation: 0,
                 shadowColor: Colors.transparent,
                 shape: shape,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
               child: content,
             ),

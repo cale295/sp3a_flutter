@@ -71,7 +71,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.08),
+                    color: AppColors.primary.withAlpha(20),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.water_drop_rounded, color: AppColors.primary, size: 24),
@@ -94,7 +94,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6),
+                          color: isDark ? AppColors.textDarkSecondary.withAlpha(153) : AppColors.textLightSecondary.withAlpha(153),
                         ),
                       ),
                     ],
@@ -110,16 +110,16 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? AppColors.bgDark.withOpacity(0.4) : AppColors.bgLight,
+                color: isDark ? AppColors.bgDark.withAlpha(102) : AppColors.bgLight,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isDark ? AppColors.borderDark : AppColors.borderLight.withOpacity(0.5),
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight.withAlpha(128),
                 ),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.08),
+                    backgroundColor: AppColors.primary.withAlpha(20),
                     child: Text(
                       authState.user?.namaLengkap.substring(0, 1).toUpperCase() ?? 'A',
                       style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.primary),
@@ -157,7 +157,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
                   child: ListTile(
                     selected: isSelected,
-                    selectedTileColor: AppColors.primary.withOpacity(0.06),
+                    selectedTileColor: AppColors.primary.withAlpha(15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -287,8 +287,11 @@ class _ManageUsersViewState extends ConsumerState<_ManageUsersView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +304,7 @@ class _ManageUsersViewState extends ConsumerState<_ManageUsersView> {
             PrimaryButton(
               text: 'Tambah Pengguna',
               icon: Icons.person_add_alt_1_rounded,
-              width: 180,
+              width: 190,
               onPressed: _openAddUserDialog,
             ),
           ],
@@ -667,7 +670,7 @@ class _UserFormDialogState extends ConsumerState<_UserFormDialog> {
                 const Text('Role Akses', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<UserRole>(
-                  value: _role,
+                  initialValue: _role,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -693,7 +696,7 @@ class _UserFormDialogState extends ConsumerState<_UserFormDialog> {
                   const Text('Tipe Pelanggan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 6),
                   DropdownButtonFormField<TipePelanggan>(
-                    value: _tipePelanggan,
+                    initialValue: _tipePelanggan,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -980,21 +983,11 @@ class _LaporanView extends ConsumerWidget {
         reportsAsync.when(
           data: (reports) {
             double totalIncome = 0;
-            int totalVolume = 0;
             int totalTx = 0;
             for (var r in reports) {
-              final valIncome = r['total_pendapatan'];
-              final valVolume = r['total_pemakaian_m3'];
-              final valTx = r['jumlah_transaksi'];
-              
-              if (valIncome != null) {
-                totalIncome += (valIncome as num).toDouble();
-              }
-              if (valVolume != null) {
-                totalVolume += (valVolume as num).toInt();
-              }
-              if (valTx != null) {
-                totalTx += (valTx as num).toInt();
+              if (r.statusPembayaran.toLowerCase() == 'sukses') {
+                totalIncome += r.jumlahBayar;
+                totalTx++;
               }
             }
 
@@ -1007,7 +1000,7 @@ class _LaporanView extends ConsumerWidget {
                       // Card 1
                       Expanded(
                         child: CustomCard(
-                          color: AppColors.primary.withOpacity(0.04),
+                          color: AppColors.primary.withAlpha(10),
                           hasBorder: true,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1025,16 +1018,16 @@ class _LaporanView extends ConsumerWidget {
                       // Card 2
                       Expanded(
                         child: CustomCard(
-                          color: AppColors.secondary.withOpacity(0.04),
+                          color: AppColors.secondary.withAlpha(10),
                           hasBorder: true,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Pemakaian Air Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.secondary)),
+                              const Text('Total Transaksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.secondary)),
                               const SizedBox(height: 12),
-                              Text('$totalVolume m³', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                              Text('$totalTx Lunas', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
                               const SizedBox(height: 4),
-                              Text('Konsumsi keseluruhan pelanggan', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+                              Text('Jumlah pembayaran berhasil', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
                             ],
                           ),
                         ),
@@ -1043,7 +1036,7 @@ class _LaporanView extends ConsumerWidget {
                       // Card 3
                       Expanded(
                         child: CustomCard(
-                          color: AppColors.warning.withOpacity(0.04),
+                          color: AppColors.warning.withAlpha(10),
                           hasBorder: true,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1060,7 +1053,7 @@ class _LaporanView extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 36),
-                  Text('Rincian Rekapitulasi Bulanan', style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('Rincian Pembayaran Pelanggan', style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   Expanded(
                     child: CustomCard(
@@ -1068,33 +1061,43 @@ class _LaporanView extends ConsumerWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: SingleChildScrollView(
-                          child: DataTable(
-                            headingRowColor: WidgetStateProperty.all(isDark ? Colors.black12 : AppColors.bgLight),
-                            dataRowMinHeight: 52,
-                            dataRowMaxHeight: 52,
-                            horizontalMargin: 24,
-                            columns: const [
-                              DataColumn(label: Text('Periode Bulan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                              DataColumn(label: Text('Tahun', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                              DataColumn(label: Text('Total Pemakaian', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                              DataColumn(label: Text('Transaksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                              DataColumn(label: Text('Total Pendapatan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                            ],
-                            rows: reports.map((r) {
-                              final int totalPemakaian = (r['total_pemakaian_m3'] as num?)?.toInt() ?? 0;
-                              final int jmlTransaksi = (r['jumlah_transaksi'] as num?)?.toInt() ?? 0;
-                              final double totalPendapatan = (r['total_pendapatan'] as num?)?.toDouble() ?? 0.0;
-                              
-                              return DataRow(
-                                cells: [
-                                  DataCell(Text(r['bulan'] as String? ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5))),
-                                  DataCell(Text((r['tahun'] ?? '').toString(), style: const TextStyle(fontSize: 13))),
-                                  DataCell(Text('$totalPemakaian m³', style: const TextStyle(fontSize: 13))),
-                                  DataCell(Text('$jmlTransaksi kali', style: const TextStyle(fontSize: 13))),
-                                  DataCell(Text(formatter.format(totalPendapatan), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary))),
+                          scrollDirection: Axis.vertical,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 320),
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(isDark ? Colors.black12 : AppColors.bgLight),
+                                dataRowMinHeight: 56,
+                                dataRowMaxHeight: 56,
+                                horizontalMargin: 24,
+                                columns: const [
+                                  DataColumn(label: Text('Pelanggan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataColumn(label: Text('Tipe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataColumn(label: Text('Periode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataColumn(label: Text('Waktu Bayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataColumn(label: Text('Metode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataColumn(label: Text('Jumlah Bayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                                 ],
-                              );
-                            }).toList(),
+                                rows: reports.map((r) {
+                                  final dateStr = r.waktuBayar != null
+                                      ? DateFormat('dd MMM yyyy, HH:mm').format(r.waktuBayar!)
+                                      : '-';
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(r.namaPelanggan.isNotEmpty ? r.namaPelanggan : '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5))),
+                                      DataCell(Text(r.tipePelanggan.toUpperCase(), style: const TextStyle(fontSize: 13))),
+                                      DataCell(Text('Bulan ${r.periodeBulan} - ${r.periodeTahun}', style: const TextStyle(fontSize: 13))),
+                                      DataCell(Text(dateStr, style: const TextStyle(fontSize: 13))),
+                                      DataCell(Text(r.metodePembayaran.toUpperCase(), style: const TextStyle(fontSize: 13))),
+                                      DataCell(Text(formatter.format(r.jumlahBayar), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary))),
+                                      DataCell(StatusBadge(status: r.statusPembayaran)),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
                         ),
                       ),

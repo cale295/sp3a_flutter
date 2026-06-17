@@ -104,7 +104,7 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
       
       setState(() {
         _selectedImageFile = file;
-        _selectedImageName = 'meter_${widget.pelanggan.id}_${_currentMonth}_${_currentYear}.jpg';
+        _selectedImageName = 'meter_${widget.pelanggan.id}_${_currentMonth}_$_currentYear.jpg';
       });
 
       final inputImage = InputImage.fromFile(file);
@@ -128,10 +128,12 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
         }
       }
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Scan OCR berhasil! Harap verifikasi hasil angka.'), backgroundColor: AppColors.success),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal scan: $e'), backgroundColor: AppColors.error),
       );
@@ -165,6 +167,7 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memilih gambar: $e'), backgroundColor: AppColors.error),
       );
@@ -215,6 +218,7 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
         setState(() {
           _isUploading = false;
         });
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Angka meteran baru ($meterValue m³) tidak boleh lebih kecil dari angka meteran sebelumnya ($prevMeter m³).'),
@@ -319,9 +323,9 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.06),
+                  color: AppColors.primary.withAlpha(15),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.12)),
+                  border: Border.all(color: AppColors.primary.withAlpha(31)),
                 ),
                 child: Row(
                   children: [
@@ -358,7 +362,7 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
                           Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(20),
-                              color: Colors.black.withOpacity(0.4),
+                              color: Colors.black.withAlpha(102),
                             ),
                           ),
                           Center(

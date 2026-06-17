@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/status_badge.dart';
@@ -8,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/tagihan_provider.dart';
+import '../../providers/pencatatan_provider.dart';
 import '../ocr/catat_meteran_screen.dart';
 
 class PetugasDashboard extends ConsumerStatefulWidget {
@@ -42,7 +44,7 @@ class _PetugasDashboardState extends ConsumerState<PetugasDashboard> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: AppColors.primary.withAlpha(20),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.water_drop_rounded, color: AppColors.primary, size: 20),
@@ -60,7 +62,7 @@ class _PetugasDashboardState extends ConsumerState<PetugasDashboard> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6),
+                      color: isDark ? AppColors.textDarkSecondary.withAlpha(153) : AppColors.textLightSecondary.withAlpha(153),
                     ),
                   ),
                 ],
@@ -93,7 +95,7 @@ class _PetugasDashboardState extends ConsumerState<PetugasDashboard> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           selectedItemColor: AppColors.primary,
-          unselectedItemColor: isDark ? AppColors.textDarkSecondary.withOpacity(0.5) : AppColors.textLightSecondary.withOpacity(0.5),
+          unselectedItemColor: isDark ? AppColors.textDarkSecondary.withAlpha(128) : AppColors.textLightSecondary.withAlpha(128),
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
@@ -143,9 +145,190 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
     super.dispose();
   }
 
+  void _showVerificationDialog(BuildContext context, PelangganStatusModel statusModel) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final reading = statusModel.reading;
+    if (reading == null) return;
+
+    final publicUrl = Supabase.instance.client.storage
+        .from('meteran')
+        .getPublicUrl(reading.fotoBukti);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+            ),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Title
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(20),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.verified_user_rounded, color: AppColors.primary, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Verifikasi Bukti Foto',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Customer details
+                Text(
+                  statusModel.pelanggan.namaLengkap,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  statusModel.pelanggan.alamat,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                  ),
+                ),
+                const Divider(height: 24, thickness: 1),
+                
+                // Reported Reading Value
+                Text(
+                  'Angka Dilaporkan:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${reading.angkaMeteran} m³',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? Colors.white : Colors.black,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Interactive Image with rounded corners and loading spinner
+                Text(
+                  'Foto Bukti Meteran (Pinch untuk Zoom):',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 260,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: InteractiveViewer(
+                      panEnabled: true,
+                      minScale: 1.0,
+                      maxScale: 4.0,
+                      child: Image.network(
+                        publicUrl,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Gagal memuat gambar bukti',
+                                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                
+                // Tutup / Verifikasi button
+                PrimaryButton(
+                  text: 'Verifikasi Cocok',
+                  icon: Icons.check_circle_rounded,
+                  height: 54,
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final pelangganAsync = ref.watch(pelangganListProvider);
+    final pelangganAsync = ref.watch(pelangganWithStatusProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -161,7 +344,7 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
             decoration: InputDecoration(
               hintText: 'Cari nama atau alamat...',
               hintStyle: TextStyle(
-                color: isDark ? AppColors.textDarkSecondary.withOpacity(0.5) : AppColors.textLightSecondary.withOpacity(0.5),
+                color: isDark ? AppColors.textDarkSecondary.withAlpha(128) : AppColors.textLightSecondary.withAlpha(128),
                 fontSize: 13.5,
               ),
               prefixIcon: const Icon(Icons.search_rounded, size: 18),
@@ -216,7 +399,8 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
           Expanded(
             child: pelangganAsync.when(
               data: (list) {
-                final filtered = list.where((user) {
+                final filtered = list.where((item) {
+                  final user = item.pelanggan;
                   final matchesSearch = user.namaLengkap.toLowerCase().contains(_searchQuery) ||
                       user.alamat.toLowerCase().contains(_searchQuery);
                   
@@ -233,13 +417,14 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(pelangganListProvider);
+                    ref.invalidate(pelangganWithStatusProvider);
                   },
                   child: ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
-                      final customer = filtered[index];
+                      final statusModel = filtered[index];
+                      final customer = statusModel.pelanggan;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: CustomCard(
@@ -255,7 +440,47 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: -0.3),
                                     ),
                                   ),
-                                  StatusBadge(status: customer.tipePelanggan.name.toUpperCase()),
+                                  Wrap(
+                                    spacing: 8,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      StatusBadge(status: customer.tipePelanggan.name.toUpperCase()),
+                                      if (statusModel.hasInputMandiri)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFE6F4EA),
+                                            borderRadius: BorderRadius.circular(100),
+                                          ),
+                                          child: const Text(
+                                            'Sudah Input Mandiri',
+                                            style: TextStyle(
+                                              color: Color(0xFF137333),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF1F3F4),
+                                            borderRadius: BorderRadius.circular(100),
+                                          ),
+                                          child: const Text(
+                                            'Belum Mencatat',
+                                            style: TextStyle(
+                                              color: Color(0xFF5F6368),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 4),
@@ -269,23 +494,34 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                               const SizedBox(height: 16),
                               Align(
                                 alignment: Alignment.centerRight,
-                                child: PrimaryButton(
-                                  text: 'Catat Meteran',
-                                  icon: Icons.camera_alt_rounded,
-                                  width: 140,
-                                  height: 36,
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => CatatMeteranScreen(pelanggan: customer),
+                                child: statusModel.hasInputMandiri
+                                    ? PrimaryButton(
+                                        text: 'Lihat Bukti Foto',
+                                        icon: Icons.image_search_rounded,
+                                        width: 170,
+                                        height: 44,
+                                        color: AppColors.secondary,
+                                        onPressed: () {
+                                          _showVerificationDialog(context, statusModel);
+                                        },
+                                      )
+                                    : PrimaryButton(
+                                        text: 'Catat Meteran',
+                                        icon: Icons.camera_alt_rounded,
+                                        width: 140,
+                                        height: 44,
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => CatatMeteranScreen(pelanggan: customer),
+                                            ),
+                                          ).then((_) {
+                                            ref.invalidate(pelangganWithStatusProvider);
+                                            ref.invalidate(allBillsProvider);
+                                          });
+                                        },
                                       ),
-                                    ).then((_) {
-                                      ref.invalidate(pelangganListProvider);
-                                      ref.invalidate(allBillsProvider);
-                                    });
-                                  },
-                                ),
                               ),
                             ],
                           ),
@@ -315,7 +551,7 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.12) : Colors.transparent,
+          color: isSelected ? AppColors.primary.withAlpha(31) : Colors.transparent,
           borderRadius: BorderRadius.circular(100),
           border: Border.all(
             color: isSelected ? AppColors.primary : (isDark ? AppColors.borderDark : AppColors.borderLight),
@@ -374,7 +610,7 @@ class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
             decoration: InputDecoration(
               hintText: 'Cari nama atau alamat...',
               hintStyle: TextStyle(
-                color: isDark ? AppColors.textDarkSecondary.withOpacity(0.5) : AppColors.textLightSecondary.withOpacity(0.5),
+                color: isDark ? AppColors.textDarkSecondary.withAlpha(128) : AppColors.textLightSecondary.withAlpha(128),
                 fontSize: 13.5,
               ),
               prefixIcon: const Icon(Icons.search_rounded, size: 18),
@@ -455,7 +691,7 @@ class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.08),
+                                      color: AppColors.primary.withAlpha(20),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(Icons.person_rounded, color: AppColors.primary, size: 20),
@@ -485,7 +721,7 @@ class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
-                                            color: isDark ? AppColors.textDarkSecondary.withOpacity(0.5) : AppColors.textLightSecondary.withOpacity(0.5),
+                                            color: isDark ? AppColors.textDarkSecondary.withAlpha(128) : AppColors.textLightSecondary.withAlpha(128),
                                           ),
                                         ),
                                       ],

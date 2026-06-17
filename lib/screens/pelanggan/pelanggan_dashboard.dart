@@ -54,28 +54,40 @@ class _PelangganDashboardState extends ConsumerState<PelangganDashboard> {
         backgroundColor: isDark ? AppColors.cardDark : Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        shadowColor: Colors.black.withAlpha(10),
+        toolbarHeight: 64, // Slightly taller for easier interaction
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
+                color: AppColors.primary.withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.water_drop_rounded, color: AppColors.primary, size: 20),
+              child: const Icon(Icons.water_drop_rounded, color: AppColors.primary, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(customer.namaLengkap, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
                   Text(
-                    'Pelanggan: ${customer.tipePelanggan.name.toUpperCase()}',
+                    customer.namaLengkap,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  Text(
+                    'Pelanggan ${customer.tipePelanggan.name == 'rumahTangga' ? 'Rumah Tangga' : 'Bisnis'}',
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? AppColors.textDarkSecondary.withOpacity(0.5) : AppColors.textLightSecondary.withOpacity(0.5),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary.withAlpha(180),
                     ),
                   ),
                 ],
@@ -84,11 +96,22 @@ class _PelangganDashboardState extends ConsumerState<PelangganDashboard> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-            onPressed: () => ref.read(authProvider.notifier).signOut(),
+          // Logout with explicit label for accessibility
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton.icon(
+              icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
+              label: const Text(
+                'Keluar',
+                style: TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              onPressed: () => ref.read(authProvider.notifier).signOut(),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: const Size(0, 44),
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: IndexedStack(
@@ -98,44 +121,55 @@ class _PelangganDashboardState extends ConsumerState<PelangganDashboard> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: isDark ? AppColors.cardDark : Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              width: 1,
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(8),
+                    blurRadius: 12,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 68, // Generous height for senior tap targets
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: isDark
+                  ? AppColors.textDarkSecondary.withAlpha(130)
+                  : AppColors.textLightSecondary.withAlpha(150),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11.5),
+              type: BottomNavigationBarType.fixed,
+              iconSize: 24,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined),
+                  activeIcon: Icon(Icons.home_rounded),
+                  label: 'Beranda', // Always visible label
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  activeIcon: Icon(Icons.receipt_long_rounded),
+                  label: 'Tagihan',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.history_rounded),
+                  activeIcon: Icon(Icons.history_rounded),
+                  label: 'Riwayat',
+                ),
+              ],
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
             ),
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: isDark ? AppColors.textDarkSecondary.withOpacity(0.5) : AppColors.textLightSecondary.withOpacity(0.5),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined, size: 22),
-              activeIcon: Icon(Icons.home_rounded, size: 22),
-              label: 'Beranda',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long_outlined, size: 22),
-              activeIcon: Icon(Icons.receipt_long_rounded, size: 22),
-              label: 'Tagihan',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_rounded, size: 22),
-              activeIcon: Icon(Icons.history_rounded, size: 22),
-              label: 'Riwayat',
-            ),
-          ],
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
         ),
       ),
     );
@@ -154,103 +188,6 @@ class _HomeTab extends ConsumerWidget {
     this.onTabChange,
   });
 
-  Widget _buildMetricColumnCard({
-    required String title,
-    required String value,
-    required String conversion,
-    required bool isDark,
-    Widget? bottomRow,
-  }) {
-    return CustomCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
-              letterSpacing: -1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            conversion,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isDark ? AppColors.textDarkSecondary.withOpacity(0.7) : AppColors.textLightSecondary.withOpacity(0.7),
-            ),
-          ),
-          if (bottomRow != null) ...[
-            const SizedBox(height: 12),
-            bottomRow,
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: CustomCard(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12.5,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 9.5,
-                color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final readingsAsync = ref.watch(customerReadingsProvider(customerId));
@@ -261,6 +198,7 @@ class _HomeTab extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final literFormatter = NumberFormat.decimalPattern('id_ID');
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -269,56 +207,99 @@ class _HomeTab extends ConsumerWidget {
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Banner Card
+            // ── Hero Welcome Banner ──────────────────────────────────────
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: isDark ? null : AppColors.lightShadow,
+                boxShadow: isDark
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: AppColors.primary.withAlpha(60),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withAlpha(30),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'SP3A — Portal Pelanggan',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   const Text(
-                    'PORTAL PELANGGAN SP3A',
+                    'Pantau air, bayar mudah.',
                     style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const Text(
-                    'Pantau penggunaan air Anda dengan mudah & lakukan pembayaran aman secara online.',
-                    style: TextStyle(color: Colors.white, fontSize: 14, height: 1.4, fontWeight: FontWeight.w500),
+                    'Cek pemakaian & tagihan air Anda kapan saja secara online.',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
                   ),
-                  const SizedBox(height: 24),
-                  Align(
-                    alignment: Alignment.centerRight,
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: AppColors.primary,
                         elevation: 0,
+                        shadowColor: Colors.transparent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                       ),
-                      icon: const Icon(Icons.speed_rounded, size: 16),
-                      label: const Text('Catat Meter Mandiri', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                      icon: const Icon(Icons.speed_rounded, size: 18),
+                      label: const Text(
+                        'Catat Meter Mandiri',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                      ),
                       onPressed: () {
-                        final authState = ref.read(authProvider);
-                        if (authState.user != null) {
+                        final auth = ref.read(authProvider);
+                        if (auth.user != null) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => CatatMeteranScreen(pelanggan: authState.user!),
+                              builder: (_) => CatatMeteranScreen(pelanggan: auth.user!),
                             ),
                           ).then((_) {
                             ref.invalidate(customerReadingsProvider(customerId));
@@ -333,78 +314,289 @@ class _HomeTab extends ConsumerWidget {
             ),
             const SizedBox(height: 32),
 
-            // Prominent Water Usage section
-            Text('Pemakaian Air', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            
+            // ── Section: Pemakaian Air ───────────────────────────────────
+            Text(
+              'Pemakaian Air',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Akumulasi total pemakaian seluruh periode',
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+              ),
+            ),
+            const SizedBox(height: 14),
+
             readingsAsync.when(
               data: (readings) {
                 int totalUsage = 0;
+                int latestUsage = 0;
+                double? trendPercent;
 
                 if (readings.isNotEmpty) {
-                  // Calculate cumulative total usage (sum of all past pemakaian_m3)
                   for (int i = 0; i < readings.length; i++) {
-                    final currentMeter = readings[i].angkaMeteran;
+                    final cur = readings[i].angkaMeteran;
                     final prev = (i + 1 < readings.length) ? readings[i + 1].angkaMeteran : 0;
-                    final u = currentMeter - prev;
-                    if (u > 0) {
-                      totalUsage += u;
+                    final u = cur - prev;
+                    if (u > 0) totalUsage += u;
+                  }
+                  // Latest month usage (first record diff)
+                  if (readings.length >= 2) {
+                    latestUsage = readings[0].angkaMeteran - readings[1].angkaMeteran;
+                    if (latestUsage < 0) latestUsage = 0;
+                    // Previous month usage
+                    if (readings.length >= 3) {
+                      final prevUsage = readings[1].angkaMeteran - readings[2].angkaMeteran;
+                      if (prevUsage > 0) {
+                        trendPercent = ((latestUsage - prevUsage) / prevUsage) * 100;
+                      }
                     }
+                  } else if (readings.length == 1) {
+                    latestUsage = readings[0].angkaMeteran;
                   }
                 }
 
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Card 1: Total Pemakaian Air
-                    _buildMetricColumnCard(
-                      title: 'Total Pemakaian Air',
-                      value: '$totalUsage m³',
-                      conversion: '≈ ${literFormatter.format(totalUsage * 1000)} Liter',
-                      isDark: isDark,
-                      bottomRow: Row(
+                    // Main usage card — hero metric, large readable value
+                    CustomCard(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.analytics_rounded, color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6), size: 16),
-                          const SizedBox(width: 4),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withAlpha(20),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.water_drop_rounded,
+                                  color: AppColors.primary,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total Pemakaian',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.textDarkSecondary
+                                            : AppColors.textLightSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Semua periode',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? AppColors.textDarkSecondary.withAlpha(140)
+                                            : AppColors.textLightSecondary.withAlpha(140),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          // Prominently large, bold metric value
                           Text(
-                            'Akumulasi semua periode',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6),
+                            '$totalUsage m³',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 48, // Hero metric — highly visible
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+                              letterSpacing: -2,
+                              height: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          // Conversion with clear separation
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withAlpha(15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '≈ ${literFormatter.format(totalUsage * 1000)} Liter',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 12),
+
+                    // Two sub-metric cards: latest usage + trend
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomCard(
+                            padding: const EdgeInsets.all(18),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Bulan Ini',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark
+                                        ? AppColors.textDarkSecondary
+                                        : AppColors.textLightSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '$latestUsage m³',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 28, // Large secondary metric
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.primary,
+                                    letterSpacing: -0.8,
+                                    height: 1.1,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${literFormatter.format(latestUsage * 1000)} L',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? AppColors.textDarkSecondary
+                                        : AppColors.textLightSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        if (trendPercent != null)
+                          Expanded(
+                            child: CustomCard(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Tren Bulan Ini',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? AppColors.textDarkSecondary
+                                          : AppColors.textLightSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '${trendPercent >= 0 ? '+' : ''}${trendPercent.toStringAsFixed(0)}%',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w800,
+                                      color: trendPercent > 0 ? AppColors.error : AppColors.success,
+                                      letterSpacing: -0.8,
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        trendPercent > 0
+                                            ? Icons.trending_up_rounded
+                                            : Icons.trending_down_rounded,
+                                        size: 14,
+                                        color: trendPercent > 0 ? AppColors.error : AppColors.success,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          'dibanding bulan lalu',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark
+                                                ? AppColors.textDarkSecondary
+                                                : AppColors.textLightSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Gagal memuat pemakaian: $err')),
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (err, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    'Gagal memuat pemakaian: $err',
+                    style: const TextStyle(color: AppColors.error, fontSize: 13),
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
-            // Quick Actions
-            Text('Aksi Cepat', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
+            // ── Section: Aksi Cepat ──────────────────────────────────────
+            Text(
+              'Aksi Cepat',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
-                  child: _buildActionButton(
-                    context: context,
+                  child: _ActionButton(
                     title: 'Catat Meter',
                     subtitle: 'Kirim angka meter',
                     icon: Icons.speed_rounded,
                     color: AppColors.primary,
                     isDark: isDark,
                     onTap: () {
-                      final authState = ref.read(authProvider);
-                      if (authState.user != null) {
+                      final auth = ref.read(authProvider);
+                      if (auth.user != null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => CatatMeteranScreen(pelanggan: authState.user!),
+                            builder: (_) => CatatMeteranScreen(pelanggan: auth.user!),
                           ),
                         ).then((_) {
                           ref.invalidate(customerReadingsProvider(customerId));
@@ -416,8 +608,7 @@ class _HomeTab extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildActionButton(
-                    context: context,
+                  child: _ActionButton(
                     title: 'Bayar Tagihan',
                     subtitle: 'Lihat tagihan aktif',
                     icon: Icons.receipt_long_rounded,
@@ -428,10 +619,9 @@ class _HomeTab extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildActionButton(
-                    context: context,
-                    title: 'Riwayat Bayar',
-                    subtitle: 'Cek transaksi lalu',
+                  child: _ActionButton(
+                    title: 'Riwayat',
+                    subtitle: 'Cek transaksi',
                     icon: Icons.history_rounded,
                     color: const Color(0xFF8B5CF6),
                     isDark: isDark,
@@ -440,79 +630,113 @@ class _HomeTab extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
-            // Informasi Tarif Aktif
+            // ── Section: Informasi Tarif ─────────────────────────────────
             tarifAsync.when(
               data: (tarif) {
                 final rate = tarif.hargaPerM3;
                 final abodemen = tarif.biayaAbodemen;
-                final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+                final denda = tarif.dendaPerBulan;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Informasi Tarif Aktif', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
+                    Text(
+                      'Informasi Tarif Aktif',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     CustomCard(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(22),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.08),
-                                      shape: BoxShape.circle,
+                              Container(
+                                padding: const EdgeInsets.all(9),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withAlpha(20),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      userType == TipePelanggan.rumahTangga
+                                          ? 'Tarif Rumah Tangga'
+                                          : 'Tarif Bisnis',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 15,
+                                      ),
                                     ),
-                                    child: const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 18),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    userType == TipePelanggan.rumahTangga ? 'Tarif Rumah Tangga' : 'Tarif Bisnis',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14.5,
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Tarif resmi berlaku saat ini',
+                                      style: TextStyle(fontSize: 12, color: AppColors.textLightSecondary),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                               const StatusBadge(status: 'aktif'),
                             ],
                           ),
+                          const SizedBox(height: 20),
+                          _buildDetailRow(
+                            'Harga Air / m³',
+                            currencyFormatter.format(rate),
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildDetailRow(
+                            'Biaya Abodemen',
+                            currencyFormatter.format(abodemen),
+                            isDark: isDark,
+                          ),
+                          if (denda > 0) ...[
+                            const SizedBox(height: 12),
+                            _buildDetailRow(
+                              'Denda Keterlambatan / Bln',
+                              currencyFormatter.format(denda),
+                              isDark: isDark,
+                              valueColor: AppColors.error,
+                            ),
+                          ],
                           const SizedBox(height: 16),
-                          _buildDetailRow('Harga Air / m³', currencyFormatter.format(rate), isDark: isDark),
-                          const SizedBox(height: 10),
-                          _buildDetailRow('Biaya Abodemen', currencyFormatter.format(abodemen), isDark: isDark),
-                          const SizedBox(height: 14),
                           DashedDivider(
                             height: 1.5,
                             color: isDark ? AppColors.borderDark : AppColors.borderLight,
                             dashWidth: 5,
                             dashGap: 3,
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.tips_and_updates_outlined,
-                                color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
-                                size: 14,
+                                color: AppColors.warning,
+                                size: 15,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   'Catatan: Biaya abodemen dibebankan jika pemakaian air 0 m³ pada bulan terkait. Jika pemakaian > 0 m³, biaya abodemen dibebaskan.',
                                   style: TextStyle(
-                                    fontSize: 10.5,
-                                    height: 1.4,
-                                    color: isDark ? AppColors.textDarkSecondary.withOpacity(0.8) : AppColors.textLightSecondary.withOpacity(0.8),
+                                    fontSize: 12,
+                                    height: 1.5,
+                                    color: isDark
+                                        ? AppColors.textDarkSecondary
+                                        : AppColors.textLightSecondary,
                                   ),
                                 ),
                               ),
@@ -533,10 +757,12 @@ class _HomeTab extends ConsumerWidget {
               error: (err, _) => Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Text('Gagal memuat informasi tarif: $err', style: const TextStyle(color: AppColors.error)),
+                  child: Text('Gagal memuat informasi tarif: $err',
+                      style: const TextStyle(color: AppColors.error, fontSize: 13)),
                 ),
               ),
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -544,8 +770,70 @@ class _HomeTab extends ConsumerWidget {
   }
 }
 
+// ── Quick Action Button Card ─────────────────────────────────────────────────
+class _ActionButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomCard(
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withAlpha(25),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark
+                  ? AppColors.textDarkSecondary.withAlpha(160)
+                  : AppColors.textLightSecondary.withAlpha(160),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ==========================================
-// TAB 2: TAGIHAN (BILLS)
+// TAB 2: TAGIHAN (BILLS) — Fintech-style receipt
 // ==========================================
 class _BillsTab extends ConsumerWidget {
   final String customerId;
@@ -584,186 +872,73 @@ class _BillsTab extends ConsumerWidget {
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Informasi Tagihan Aktif', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
+            Text(
+              'Tagihan Aktif',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Detail tagihan dan pembayaran bulan ini',
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
             activeTagihanAsync.when(
               data: (bill) {
                 if (bill == null) {
-                  return CustomCard(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.success.withOpacity(0.08),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: 36),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text('Semua tagihan Anda lunas!', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: -0.2)),
-                            const SizedBox(height: 4),
-                            Text('Terima kasih atas pembayaran tepat waktu.', style: TextStyle(fontSize: 12, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
+                  return _buildAllClearCard(isDark);
                 }
 
                 return tarifAsync.when(
                   data: (tarif) {
                     final rate = tarif.hargaPerM3;
                     final abodemen = tarif.biayaAbodemen;
-                    
-                    // APPLY CONDITIONAL ABODEMEN RULE
-                    final calculatedTotal = bill.pemakaianM3 == 0 ? abodemen : (bill.pemakaianM3 * rate);
+                    final calculatedTotal = bill.pemakaianM3 == 0
+                        ? abodemen
+                        : (bill.pemakaianM3 * rate);
+                    final totalBayar = calculatedTotal + bill.totalDenda;
 
-                    return Column(
-                      children: [
-                        CustomCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Tagihan Air Bulan Ini', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary)),
-                                  StatusBadge(status: bill.statusTagihan.dbValue),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              // Details breakdown
-                              _buildDetailRow('Volume Pemakaian', '${bill.pemakaianM3} m³', isBoldValue: true, isDark: isDark),
-                              const SizedBox(height: 12),
-                              _buildDetailRow(
-                                'Tarif Air',
-                                '${bill.pemakaianM3} m³ x ${formatter.format(rate)} = ${formatter.format(bill.pemakaianM3 * rate)}',
-                                isDark: isDark,
-                              ),
-                              // DYNAMICALLY HIDE ABODEMEN ROW IF USAGE > 0
-                              if (bill.pemakaianM3 == 0) ...[
-                                const SizedBox(height: 12),
-                                _buildDetailRow('Biaya Abodemen', formatter.format(abodemen), isDark: isDark),
-                              ],
-                              // DYNAMICALLY SHOW PENALTY ROW IF LATE BILLS > 0
-                              if (bill.jumlahBulanTunggakan > 0) ...[
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: AppColors.error.withOpacity(0.2),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 16),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Denda Tunggakan (${bill.jumlahBulanTunggakan} Bulan)',
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              color: AppColors.error,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Text(
-                                        formatter.format(bill.totalDenda),
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.error,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 16),
-                              DashedDivider(
-                                height: 1.5,
-                                color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                dashWidth: 5,
-                                dashGap: 3,
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    bill.jumlahBulanTunggakan > 0 ? 'Total Pembayaran' : 'Total Tagihan',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14.5,
-                                      color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    formatter.format(calculatedTotal + bill.totalDenda),
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 18,
-                                      color: AppColors.error,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              PrimaryButton(
-                                text: 'Bayar Sekarang',
-                                icon: Icons.payment_rounded,
-                                onPressed: () => _openPaymentSheet(
-                                  context,
-                                  ref,
-                                  bill.copyWith(totalTagihan: calculatedTotal + bill.totalDenda),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    return _buildBillReceipt(
+                      context: context,
+                      ref: ref,
+                      bill: bill,
+                      rate: rate,
+                      abodemen: abodemen,
+                      calculatedTotal: calculatedTotal,
+                      totalBayar: totalBayar,
+                      formatter: formatter,
+                      isDark: isDark,
                     );
                   },
                   loading: () => const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()),
                   ),
                   error: (err, _) => Center(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Gagal memuat tarif: $err'),
+                      padding: const EdgeInsets.all(24),
+                      child: Text('Gagal memuat tarif: $err',
+                          style: const TextStyle(color: AppColors.error)),
                     ),
                   ),
                 );
               },
               loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: CircularProgressIndicator(),
-                ),
+                child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()),
               ),
               error: (err, _) => Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text('Gagal memuat tagihan: $err'),
+                  padding: const EdgeInsets.all(24),
+                  child: Text('Gagal memuat tagihan: $err',
+                      style: const TextStyle(color: AppColors.error)),
                 ),
               ),
             ),
@@ -772,16 +947,338 @@ class _BillsTab extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildAllClearCard(bool isDark) {
+    return CustomCard(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.success.withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 40),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Semua Tagihan Lunas!',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Terima kasih atas pembayaran tepat waktu.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBillReceipt({
+    required BuildContext context,
+    required WidgetRef ref,
+    required TagihanModel bill,
+    required double rate,
+    required double abodemen,
+    required double calculatedTotal,
+    required double totalBayar,
+    required NumberFormat formatter,
+    required bool isDark,
+  }) {
+    return Column(
+      children: [
+        // ── Digital Receipt Card ─────────────────────────────────────────
+        CustomCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              // Receipt header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppColors.primary.withAlpha(30)
+                      : AppColors.primary.withAlpha(15),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tagihan Air Bulan Ini',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'No. Tagihan: #${bill.id}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    StatusBadge(status: bill.statusTagihan.dbValue),
+                  ],
+                ),
+              ),
+
+              // Receipt body — breakdown rows
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildReceiptRow(
+                      label: 'Volume Pemakaian',
+                      value: '${bill.pemakaianM3} m³',
+                      isDark: isDark,
+                      isBold: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _buildReceiptRow(
+                      label: 'Tarif Air',
+                      value: bill.pemakaianM3 > 0
+                          ? '${bill.pemakaianM3} m³ × ${formatter.format(rate)}'
+                          : '-',
+                      isDark: isDark,
+                    ),
+                    if (bill.pemakaianM3 == 0) ...[
+                      const SizedBox(height: 14),
+                      _buildReceiptRow(
+                        label: 'Biaya Abodemen',
+                        value: formatter.format(abodemen),
+                        isDark: isDark,
+                      ),
+                    ],
+                    _buildSubtotalRow(
+                      label: 'Subtotal',
+                      value: formatter.format(calculatedTotal),
+                      isDark: isDark,
+                    ),
+
+                    // Penalty row — highlighted with warning color
+                    if (bill.jumlahBulanTunggakan > 0) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withAlpha(15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.error.withAlpha(50),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Denda Tunggakan',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.error,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${bill.jumlahBulanTunggakan} bulan belum dibayar',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.error.withAlpha(180),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              formatter.format(bill.totalDenda),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 20),
+                    DashedDivider(
+                      height: 1.5,
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      dashWidth: 6,
+                      dashGap: 4,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Total Pembayaran — Large fintech-style amount ─────
+                    Column(
+                      children: [
+                        Text(
+                          bill.jumlahBulanTunggakan > 0 ? 'Total Pembayaran' : 'Total Tagihan',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Hero total amount — large, bold, unmissable
+                        Text(
+                          formatter.format(totalBayar),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 36, // Large fintech-style total
+                            color: bill.jumlahBulanTunggakan > 0
+                                ? AppColors.error
+                                : AppColors.textLightPrimary,
+                            letterSpacing: -1.0,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Termasuk semua biaya',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Pay button at bottom of card
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: PrimaryButton(
+                  text: 'Bayar Sekarang',
+                  icon: Icons.payment_rounded,
+                  height: 56, // Extra generous touch target for CTA
+                  onPressed: () => _openPaymentSheet(
+                    context,
+                    ref,
+                    bill.copyWith(totalTagihan: totalBayar),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReceiptRow({
+    required String label,
+    required String value,
+    required bool isDark,
+    bool isBold = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+              color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubtotalRow({
+    required String label,
+    required String value,
+    required bool isDark,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-Widget _buildDetailRow(String label, String value, {bool isBoldValue = false, required bool isDark}) {
+// Shared detail row for Tarif section
+Widget _buildDetailRow(
+  String label,
+  String value, {
+  bool isBoldValue = false,
+  required bool isDark,
+  Color? valueColor,
+}) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
       Text(
         label,
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 14,
           color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
           fontWeight: FontWeight.w500,
         ),
@@ -789,9 +1286,9 @@ Widget _buildDetailRow(String label, String value, {bool isBoldValue = false, re
       Text(
         value,
         style: TextStyle(
-          fontSize: 13,
-          fontWeight: isBoldValue ? FontWeight.bold : FontWeight.w600,
-          color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+          fontSize: 14,
+          fontWeight: isBoldValue ? FontWeight.w800 : FontWeight.w700,
+          color: valueColor ?? (isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary),
         ),
       ),
     ],
@@ -799,7 +1296,7 @@ Widget _buildDetailRow(String label, String value, {bool isBoldValue = false, re
 }
 
 // ==========================================
-// SUB-WIDGET: Dashed Divider for Premium Receipt Styling
+// SUB-WIDGET: Dashed Divider
 // ==========================================
 class DashedDivider extends StatelessWidget {
   final double height;
@@ -840,7 +1337,7 @@ class DashedDivider extends StatelessWidget {
 }
 
 // ==========================================
-// TAB 3: RIWAYAT PEMBAYARAN (HISTORY)
+// TAB 3: RIWAYAT PEMBAYARAN
 // ==========================================
 class _HistoryTab extends ConsumerWidget {
   final String customerId;
@@ -859,15 +1356,24 @@ class _HistoryTab extends ConsumerWidget {
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Timeline Pembayaran', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'Riwayat Pembayaran',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.2,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               'Riwayat lengkap transaksi pembayaran tagihan air Anda.',
-              style: TextStyle(fontSize: 12.5, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+              ),
             ),
             const SizedBox(height: 20),
             paymentHistoryAsync.when(
@@ -876,9 +1382,23 @@ class _HistoryTab extends ConsumerWidget {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 48),
-                      child: Text(
-                        'Belum ada riwayat pembayaran.',
-                        style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary, fontSize: 13),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 48,
+                            color: (isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)
+                                .withAlpha(120),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Belum ada riwayat pembayaran.',
+                            style: TextStyle(
+                              color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -893,15 +1413,21 @@ class _HistoryTab extends ConsumerWidget {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: CustomCard(
+                        padding: const EdgeInsets.all(18),
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(10),
+                              width: 48,
+                              height: 48,
                               decoration: BoxDecoration(
-                                color: AppColors.success.withOpacity(0.08),
-                                shape: BoxShape.circle,
+                                color: AppColors.success.withAlpha(20),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.check_rounded, color: AppColors.success, size: 18),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                color: AppColors.success,
+                                size: 22,
+                              ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -910,18 +1436,45 @@ class _HistoryTab extends ConsumerWidget {
                                 children: [
                                   Text(
                                     tx.metodePembayaran,
-                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, letterSpacing: -0.2),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    dateStr,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? AppColors.textDarkSecondary
+                                          : AppColors.textLightSecondary,
+                                    ),
                                   ),
                                   const SizedBox(height: 2),
-                                  Text('Order ID: ${tx.id}', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6))),
-                                  const SizedBox(height: 2),
-                                  Text(dateStr, style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6))),
+                                  Text(
+                                    'ID: ${tx.id.length > 20 ? '${tx.id.substring(0, 20)}…' : tx.id}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: (isDark
+                                          ? AppColors.textDarkSecondary
+                                          : AppColors.textLightSecondary)
+                                          .withAlpha(150),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Text(
                               formatter.format(tx.jumlahBayar),
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: AppColors.primary, letterSpacing: -0.2),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: AppColors.primary,
+                                letterSpacing: -0.3,
+                              ),
                             ),
                           ],
                         ),
@@ -931,7 +1484,10 @@ class _HistoryTab extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Gagal memuat riwayat: $err')),
+              error: (err, _) => Center(
+                child: Text('Gagal memuat riwayat: $err',
+                    style: const TextStyle(color: AppColors.error)),
+              ),
             ),
           ],
         ),
@@ -956,7 +1512,7 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
   bool _isPaying = false;
 
   final List<Map<String, dynamic>> _methods = [
-    {'name': 'QRIS', 'subtitle': 'Bayar instan pakai Gopay, OVO, ShopeePay', 'icon': Icons.qr_code_2_rounded},
+    {'name': 'QRIS', 'subtitle': 'Gopay, OVO, ShopeePay & semua e-wallet', 'icon': Icons.qr_code_2_rounded},
     {'name': 'Virtual Account (VA)', 'subtitle': 'Mandiri, BCA, BRI, BNI', 'icon': Icons.account_balance_rounded},
     {'name': 'e-Wallet', 'subtitle': 'DANA, LinkAja', 'icon': Icons.account_balance_wallet_rounded},
   ];
@@ -1002,22 +1558,28 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: AppColors.success.withOpacity(0.08), shape: BoxShape.circle),
-                child: const Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: 48),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 52),
               ),
               const SizedBox(height: 20),
-              const Text('Pembayaran Sukses!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
-              const SizedBox(height: 6),
+              const Text(
+                'Pembayaran Sukses!',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+              ),
+              const SizedBox(height: 8),
               Text(
                 'Tagihan sebesar ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0).format(widget.bill.totalTagihan)} telah lunas.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, fontSize: 13, height: 1.4),
+                style: const TextStyle(fontSize: 13, height: 1.5, color: Colors.grey),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               PrimaryButton(
                 text: 'Selesai',
-                width: 140,
+                width: 150,
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -1038,29 +1600,53 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
         color: isDark ? AppColors.cardDark : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
             child: Container(
-              width: 36,
+              width: 40,
               height: 4,
               margin: const EdgeInsets.only(bottom: 24),
-              decoration: BoxDecoration(color: Colors.grey[350], borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
-          Text('Pembayaran Air SP3A', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'Konfirmasi Pembayaran',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 4),
           Text(
-            'Total tagihan: ${formatter.format(widget.bill.totalTagihan)}',
-            style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w800, fontSize: 14.5, letterSpacing: -0.3),
+            'Total yang akan dibayar',
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Prominently styled total amount
+          Text(
+            formatter.format(widget.bill.totalTagihan),
+            style: GoogleFonts.plusJakartaSans(
+              color: AppColors.error,
+              fontWeight: FontWeight.w800,
+              fontSize: 30,
+              letterSpacing: -1.0,
+            ),
           ),
           const SizedBox(height: 24),
           Text(
             'Pilih Metode Pembayaran',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: isDark ? Colors.white : AppColors.textLightPrimary),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: isDark ? Colors.white : AppColors.textLightPrimary,
+            ),
           ),
           const SizedBox(height: 12),
           ..._methods.map((method) {
@@ -1076,18 +1662,19 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
                         });
                       },
                 borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isSelected
                           ? AppColors.primary
                           : (isDark ? AppColors.borderDark : AppColors.borderLight),
-                      width: isSelected ? 1.5 : 1,
+                      width: isSelected ? 2 : 1,
                     ),
                     color: isSelected
-                        ? AppColors.primary.withOpacity(0.04)
+                        ? AppColors.primary.withAlpha(12)
                         : Colors.transparent,
                   ),
                   child: Row(
@@ -1095,7 +1682,7 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
                       Icon(
                         method['icon'] as IconData,
                         color: isSelected ? AppColors.primary : Colors.grey,
-                        size: 22,
+                        size: 24,
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1105,21 +1692,23 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
                             Text(
                               method['name'] as String,
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13.5,
-                                color: isSelected ? AppColors.primary : (isDark ? Colors.white : AppColors.textLightPrimary),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : (isDark ? Colors.white : AppColors.textLightPrimary),
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               method['subtitle'] as String,
-                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                           ],
                         ),
                       ),
                       if (isSelected)
-                        const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 18),
+                        const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20),
                     ],
                   ),
                 ),
@@ -1129,6 +1718,7 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
           const SizedBox(height: 24),
           PrimaryButton(
             text: 'Konfirmasi & Bayar',
+            height: 56,
             isLoading: _isPaying,
             onPressed: _triggerPayment,
           ),

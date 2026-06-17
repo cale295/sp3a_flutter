@@ -22,24 +22,24 @@ class StatusBadge extends StatelessWidget {
     switch (normalized) {
       case 'lunas':
       case 'sukses':
-        color = AppColors.success.withOpacity(0.12);
+        color = AppColors.success.withAlpha(31);
         textColor = AppColors.success;
         label = normalized.toUpperCase();
         break;
       case 'belum dibayar':
       case 'belum bayar':
       case 'gagal':
-        color = AppColors.error.withOpacity(0.12);
+        color = AppColors.error.withAlpha(31);
         textColor = AppColors.error;
         label = normalized.toUpperCase();
         break;
       case 'pending':
-        color = AppColors.warning.withOpacity(0.12);
+        color = AppColors.warning.withAlpha(31);
         textColor = AppColors.warning;
         label = normalized.toUpperCase();
         break;
       default:
-        color = AppColors.info.withOpacity(0.12);
+        color = AppColors.info.withAlpha(31);
         textColor = AppColors.info;
         label = status.toUpperCase();
         break;

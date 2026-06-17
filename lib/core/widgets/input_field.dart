@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+/// Accessible text input field following the Inclusive Modern Design system.
+/// Uses a floating label above the field with explicit hint text.
+/// Font size is minimum 14pt for readability by senior users.
 class InputField extends StatefulWidget {
   final String label;
   final String? hint;
@@ -12,6 +15,7 @@ class InputField extends StatefulWidget {
   final bool enabled;
   final VoidCallback? onTap;
   final bool readOnly;
+  final int? maxLines;
 
   const InputField({
     super.key,
@@ -25,6 +29,7 @@ class InputField extends StatefulWidget {
     this.enabled = true,
     this.onTap,
     this.readOnly = false,
+    this.maxLines = 1,
   });
 
   @override
@@ -39,33 +44,34 @@ class _InputFieldState extends State<InputField> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(
-        color: Colors.transparent, // Minimalist: no border unless focused
-        width: 0,
-      ),
-    );
+    final fillColor = isDark ? AppColors.inputBgDark : AppColors.inputBgLight;
+    final hintColor = isDark
+        ? AppColors.textDarkSecondary.withAlpha(140)
+        : AppColors.textLightSecondary.withAlpha(140);
+    final iconColor = isDark
+        ? AppColors.textDarkSecondary.withAlpha(160)
+        : AppColors.textLightSecondary.withAlpha(160);
 
+    final baseBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    );
     final focusedBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
       borderSide: BorderSide(
-        color: AppColors.primary.withOpacity(0.3), // Soft primary outline on focus
+        color: isDark ? AppColors.primaryLight : AppColors.primary,
         width: 1.5,
       ),
     );
-
     final errorBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(
-        color: AppColors.error,
-        width: 1,
-      ),
+      borderSide: const BorderSide(color: AppColors.error, width: 1.2),
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Explicit floating label — always visible above the field
         Text(
           widget.label,
           style: TextStyle(
@@ -75,7 +81,7 @@ class _InputFieldState extends State<InputField> {
             letterSpacing: 0.1,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 7),
         TextFormField(
           controller: widget.controller,
           keyboardType: widget.keyboardType,
@@ -84,36 +90,52 @@ class _InputFieldState extends State<InputField> {
           enabled: widget.enabled,
           onTap: widget.onTap,
           readOnly: widget.readOnly,
+          maxLines: widget.isPassword ? 1 : widget.maxLines,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 15, // Minimum readable font size for seniors
+            fontWeight: FontWeight.w500,
             color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
           ),
           decoration: InputDecoration(
             hintText: widget.hint,
             hintStyle: TextStyle(
-              fontSize: 13,
-              color: isDark ? AppColors.textDarkSecondary.withOpacity(0.5) : AppColors.textLightSecondary.withOpacity(0.5),
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: hintColor,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            // Generous vertical padding for easy-to-tap touch area
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             filled: true,
-            fillColor: isDark ? AppColors.inputBgDark : AppColors.inputBgLight,
-            enabledBorder: border,
+            fillColor: fillColor,
+            enabledBorder: baseBorder,
             focusedBorder: focusedBorder,
             errorBorder: errorBorder,
-            focusedErrorBorder: focusedBorder.copyWith(borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
+            focusedErrorBorder: errorBorder.copyWith(
+              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+            ),
+            disabledBorder: baseBorder,
             prefixIcon: widget.prefixIcon != null
-                ? Icon(
-                    widget.prefixIcon,
-                    color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6),
-                    size: 18,
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 14, right: 4),
+                    child: Icon(
+                      widget.prefixIcon,
+                      color: iconColor,
+                      size: 20,
+                    ),
                   )
                 : null,
+            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             suffixIcon: widget.isPassword
                 ? IconButton(
                     icon: Icon(
-                      _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: isDark ? AppColors.textDarkSecondary.withOpacity(0.6) : AppColors.textLightSecondary.withOpacity(0.6),
-                      size: 18,
+                      _obscureText
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: iconColor,
+                      size: 20,
                     ),
                     onPressed: () {
                       setState(() {

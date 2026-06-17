@@ -35,7 +35,7 @@ void main() async {
     if (url.isNotEmpty && key.isNotEmpty) {
       await Supabase.initialize(
         url: url,
-        anonKey: key,
+        publishableKey: key,
       );
       isSupabaseInitialized = true;
     } else {
@@ -115,7 +115,6 @@ class _AuthGate extends ConsumerWidget {
       case UserRole.petugas:
         return const PetugasDashboard();
       case UserRole.pelanggan:
-      default:
         return const PelangganDashboard();
     }
   }
@@ -147,7 +146,7 @@ class _UnconfiguredFallbackScreen extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withAlpha(13),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -180,7 +179,7 @@ class _UnconfiguredFallbackScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isDark ? Colors.black26 : AppColors.bgLight,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    border: Border.all(color: Colors.grey.withAlpha(51)),
                   ),
                   child: const SelectableText(
                     'lib/core/constants/supabase_constants.dart',
@@ -392,7 +391,7 @@ class _DemoCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withAlpha(10),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -402,7 +401,7 @@ class _DemoCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 28,
-              backgroundColor: color.withOpacity(0.1),
+              backgroundColor: color.withAlpha(26),
               child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(height: 16),

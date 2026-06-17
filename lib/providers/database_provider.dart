@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/tarif_model.dart';
+import '../models/laporan_pembayaran_model.dart';
 
 class DatabaseService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -70,9 +71,9 @@ class DatabaseService {
 
   // --- LAPORAN VIEW (Admin) ---
 
-  Future<List<Map<String, dynamic>>> getLaporan() async {
+  Future<List<LaporanPembayaran>> getLaporan() async {
     final response = await _client.from('view_laporan_pembayaran').select();
-    return List<Map<String, dynamic>>.from(response as List);
+    return (response as List).map((json) => LaporanPembayaran.fromJson(json)).toList();
   }
 
   // --- CUSTOMERS LIST (Petugas) ---
@@ -100,7 +101,7 @@ final tarifsListProvider = FutureProvider.autoDispose<List<TarifModel>>((ref) as
   return ref.watch(databaseServiceProvider).getTarifs();
 });
 
-final laporanProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+final laporanProvider = FutureProvider.autoDispose<List<LaporanPembayaran>>((ref) async {
   return ref.watch(databaseServiceProvider).getLaporan();
 });
 

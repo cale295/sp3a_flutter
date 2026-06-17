@@ -90,7 +90,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.08),
+                        color: AppColors.primary.withAlpha(20),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -129,9 +129,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.08),
+                        color: AppColors.error.withAlpha(20),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.error.withOpacity(0.15), width: 1),
+                        border: Border.all(color: AppColors.error.withAlpha(38), width: 1),
                       ),
                       child: Row(
                         children: [
@@ -212,7 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Pencatatan meteran & pembayaran digital.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontSize: 11,
-                        color: isDark ? AppColors.textDarkSecondary.withOpacity(0.4) : AppColors.textLightSecondary.withOpacity(0.4),
+                        color: isDark ? AppColors.textDarkSecondary.withAlpha(102) : AppColors.textLightSecondary.withAlpha(102),
                       ),
                     ),
                   ),

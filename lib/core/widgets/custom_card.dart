@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
+/// Borderless card widget with an elegant, subtle drop shadow.
+/// Conforms to the Inclusive Modern Design system — no hard borders,
+/// only soft depth cues for a premium, clean appearance.
 class CustomCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -14,7 +17,7 @@ class CustomCard extends StatelessWidget {
     this.padding,
     this.onTap,
     this.color,
-    this.hasBorder = true,
+    this.hasBorder = false, // Default borderless for modern look
   });
 
   @override
@@ -23,14 +26,37 @@ class CustomCard extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final cardColor = color ?? (isDark ? AppColors.cardDark : AppColors.cardLight);
-    final borderColor = isDark ? AppColors.borderDark : AppColors.borderLight;
+
+    // Elegant, ultra-soft shadow only in light mode
+    final softShadow = isDark
+        ? null
+        : [
+            BoxShadow(
+              color: Colors.black.withAlpha(8), // 0.03 opacity
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: Colors.black.withAlpha(5),
+              blurRadius: 4,
+              spreadRadius: 0,
+              offset: const Offset(0, 1),
+            ),
+          ];
 
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(16), // Rounded modern look
-        border: hasBorder ? Border.all(color: borderColor, width: 1) : null,
-        boxShadow: isDark ? null : AppColors.lightShadow, // Smooth eye-friendly shadows
+        borderRadius: BorderRadius.circular(16),
+        // Subtle border only when explicitly requested
+        border: hasBorder
+            ? Border.all(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                width: 1,
+              )
+            : null,
+        boxShadow: softShadow,
       ),
       child: Material(
         color: Colors.transparent,
@@ -39,7 +65,7 @@ class CustomCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: padding ?? const EdgeInsets.all(20), // Airy layout padding
+            padding: padding ?? const EdgeInsets.all(20),
             child: child,
           ),
         ),
