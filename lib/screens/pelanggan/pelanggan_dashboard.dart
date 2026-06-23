@@ -12,7 +12,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/tagihan_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/pencatatan_provider.dart';
-import '../ocr/catat_meteran_screen.dart';
 
 class PelangganDashboard extends ConsumerStatefulWidget {
   const PelangganDashboard({super.key});
@@ -276,37 +275,29 @@ class _HomeTab extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  SizedBox(
+                  // Pencatatan meter dilakukan oleh Petugas — info chip
+                  Container(
                     width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                      icon: const Icon(Icons.speed_rounded, size: 18),
-                      label: const Text(
-                        'Catat Meter Mandiri',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                      ),
-                      onPressed: () {
-                        final auth = ref.read(authProvider);
-                        if (auth.user != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CatatMeteranScreen(pelanggan: auth.user!),
-                            ),
-                          ).then((_) {
-                            ref.invalidate(customerReadingsProvider(customerId));
-                            ref.invalidate(activeTagihanProvider(customerId));
-                          });
-                        }
-                      },
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(30),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withAlpha(60)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.shield_rounded, color: Colors.white70, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Meter dicatat oleh Petugas SP3A',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -583,30 +574,6 @@ class _HomeTab extends ConsumerWidget {
             const SizedBox(height: 14),
             Row(
               children: [
-                Expanded(
-                  child: _ActionButton(
-                    title: 'Catat Meter',
-                    subtitle: 'Kirim angka meter',
-                    icon: Icons.speed_rounded,
-                    color: AppColors.primary,
-                    isDark: isDark,
-                    onTap: () {
-                      final auth = ref.read(authProvider);
-                      if (auth.user != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CatatMeteranScreen(pelanggan: auth.user!),
-                          ),
-                        ).then((_) {
-                          ref.invalidate(customerReadingsProvider(customerId));
-                          ref.invalidate(activeTagihanProvider(customerId));
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: _ActionButton(
                     title: 'Bayar Tagihan',

@@ -5,7 +5,7 @@ class PencatatanMeteranModel {
   final int periodeBulan;
   final int periodeTahun;
   final int angkaMeteran;
-  final String fotoBukti;
+  final String? fotoBukti; // Nullable — Petugas inserts no longer require a photo
 
   PencatatanMeteranModel({
     required this.id,
@@ -14,7 +14,7 @@ class PencatatanMeteranModel {
     required this.periodeBulan,
     required this.periodeTahun,
     required this.angkaMeteran,
-    required this.fotoBukti,
+    this.fotoBukti,
   });
 
   factory PencatatanMeteranModel.fromJson(Map<String, dynamic> json) {
@@ -25,7 +25,7 @@ class PencatatanMeteranModel {
       periodeBulan: json['periode_bulan'] as int,
       periodeTahun: json['periode_tahun'] as int,
       angkaMeteran: json['angka_meteran'] as int,
-      fotoBukti: json['foto_bukti'] as String? ?? '',
+      fotoBukti: json['foto_bukti'] as String?,
     );
   }
 
@@ -37,7 +37,7 @@ class PencatatanMeteranModel {
       'periode_bulan': periodeBulan,
       'periode_tahun': periodeTahun,
       'angka_meteran': angkaMeteran,
-      'foto_bukti': fotoBukti,
+      if (fotoBukti != null) 'foto_bukti': fotoBukti,
     };
   }
 

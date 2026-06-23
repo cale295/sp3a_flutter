@@ -9,9 +9,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/input_field.dart';
 import '../../models/user_model.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/pencatatan_provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CatatMeteranScreen extends ConsumerStatefulWidget {
   final UserModel pelanggan;
@@ -32,10 +29,12 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
   // OCR/Image variables
   File? _selectedImageFile; // For Mobile
   Uint8List? _selectedImageBytes; // For Web
+  // ignore: unused_field — referenced by camera/pick callbacks; _submitReading is deprecated
   String? _selectedImageName;
   final _meterValueController = TextEditingController();
   
   bool _isProcessing = false;
+  // ignore: prefer_final_fields — mutated indirectly through setState in camera callbacks
   bool _isUploading = false;
   
   final int _currentMonth = DateTime.now().month;
@@ -174,131 +173,23 @@ class _CatatMeteranScreenState extends ConsumerState<CatatMeteranScreen> {
     }
   }
 
-  // Submit meter reading and upload image to Supabase
-  void _submitReading() async {
-    final meterText = _meterValueController.text.trim();
-    if (meterText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Angka meteran harus diisi'), backgroundColor: AppColors.error),
-      );
-      return;
-    }
-
-    final int? meterValue = int.tryParse(meterText);
-    if (meterValue == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Angka meteran harus berupa angka valid'), backgroundColor: AppColors.error),
-      );
-      return;
-    }
-
-    if (_selectedImageFile == null && _selectedImageBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Harap unggah atau ambil foto bukti meteran'), backgroundColor: AppColors.error),
-      );
-      return;
-    }
-
-    setState(() {
-      _isUploading = true;
-    });
-
-    try {
-      final authState = ref.read(authProvider);
-      final pencatatanService = ref.read(pencatatanServiceProvider);
-
-      // 1. Fetch previous readings BEFORE inserting to calculate usage and validate input
-      final previousReadings = await pencatatanService.getReadingsForCustomer(widget.pelanggan.id);
-      int prevMeter = 0;
-      if (previousReadings.isNotEmpty) {
-        prevMeter = previousReadings.first.angkaMeteran;
-      }
-
-      if (meterValue < prevMeter) {
-        setState(() {
-          _isUploading = false;
-        });
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Angka meteran baru ($meterValue m³) tidak boleh lebih kecil dari angka meteran sebelumnya ($prevMeter m³).'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-        return;
-      }
-      
-      String storagePath = '';
-      if (kIsWeb) {
-        storagePath = await pencatatanService.uploadMeterPhoto(
-          _selectedImageName!,
-          _selectedImageBytes!,
-        );
-      } else {
-        storagePath = await pencatatanService.uploadMeterPhoto(
-          _selectedImageName!,
-          _selectedImageFile!,
-        );
-      }
-
-      final log = await pencatatanService.createReading(
-        pelangganId: widget.pelanggan.id,
-        dicatatOleh: authState.user?.id ?? widget.pelanggan.id,
-        periodeBulan: _currentMonth,
-        periodeTahun: _currentYear,
-        angkaMeteran: meterValue,
-        fotoBuktiPath: storagePath,
-      );
-
-      try {
-        final int usage = meterValue - prevMeter;
-        
-        final client = Supabase.instance.client;
-        final response = await client
-            .from('tarif')
-            .select()
-            .eq('tipe_pelanggan', widget.pelanggan.tipePelanggan.dbValue)
-            .maybeSingle();
-
-        double rate = widget.pelanggan.tipePelanggan == TipePelanggan.rumahTangga ? 1500.0 : 3000.0;
-        double abodemen = widget.pelanggan.tipePelanggan == TipePelanggan.rumahTangga ? 10000.0 : 50000.0;
-
-        if (response != null) {
-          rate = (response['harga_per_m3'] as num).toDouble();
-          abodemen = (response['biaya_abodemen'] as num).toDouble();
-        }
-
-        final double total = usage == 0 ? abodemen : (usage * rate);
-
-        await client.from('tagihan').insert({
-          'pelanggan_id': widget.pelanggan.id,
-          'pencatatan_id': log.id,
-          'pemakaian_m3': usage,
-          'total_tagihan': total,
-          'status_tagihan': 'belum_dibayar',
-        });
-      } catch (e) {
-        debugPrint("Optimistic bill insertion bypassed: $e");
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pencatatan berhasil dikirim!'), backgroundColor: AppColors.success),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal mengirim data: $e'), backgroundColor: AppColors.error),
-        );
-      }
-    } finally {
-      setState(() {
-        _isUploading = false;
-      });
-    }
+  // ──────────────────────────────────────────────────────────────────────────
+  // DEPRECATED: Self-meter input by customers is no longer supported.
+  // Meter readings are now exclusively recorded by Petugas officers via the
+  // numeric input dialog in PetugasDashboard. This screen is kept for
+  // reference only and is NOT reachable from any live navigation route.
+  // ──────────────────────────────────────────────────────────────────────────
+  void _submitReading() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Pencatatan mandiri tidak lagi didukung. Hubungi Petugas SP3A Anda.',
+        ),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
+
 
   @override
   Widget build(BuildContext context) {
