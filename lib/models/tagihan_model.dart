@@ -27,6 +27,7 @@ class TagihanModel {
   final StatusTagihan statusTagihan;
   final double totalDenda;
   final int jumlahBulanTunggakan;
+  final String? fotoBukti;
 
   TagihanModel({
     required this.id,
@@ -37,6 +38,7 @@ class TagihanModel {
     required this.statusTagihan,
     this.totalDenda = 0.0,
     this.jumlahBulanTunggakan = 0,
+    this.fotoBukti,
   });
 
   factory TagihanModel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +51,7 @@ class TagihanModel {
       statusTagihan: StatusTagihan.fromString(json['status_tagihan'] as String? ?? 'belum_dibayar'),
       totalDenda: (json['total_denda'] as num?)?.toDouble() ?? 0.0,
       jumlahBulanTunggakan: json['jumlah_bulan_tunggakan'] as int? ?? 0,
+      fotoBukti: json['foto_bukti'] as String?,
     );
   }
 
@@ -61,6 +64,7 @@ class TagihanModel {
       'total_tagihan': totalTagihan,
       'status_tagihan': statusTagihan.dbValue,
       'total_denda': totalDenda,
+      if (fotoBukti != null) 'foto_bukti': fotoBukti,
     };
   }
 
@@ -73,6 +77,7 @@ class TagihanModel {
     StatusTagihan? statusTagihan,
     double? totalDenda,
     int? jumlahBulanTunggakan,
+    String? fotoBukti,
   }) {
     return TagihanModel(
       id: id ?? this.id,
@@ -83,6 +88,7 @@ class TagihanModel {
       statusTagihan: statusTagihan ?? this.statusTagihan,
       totalDenda: totalDenda ?? this.totalDenda,
       jumlahBulanTunggakan: jumlahBulanTunggakan ?? this.jumlahBulanTunggakan,
+      fotoBukti: fotoBukti ?? this.fotoBukti,
     );
   }
 }

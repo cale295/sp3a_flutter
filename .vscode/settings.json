@@ -1,0 +1,15 @@
+{
+  // Enable Deno language server for the Edge Functions folder only.
+  // This stops VS Code's TypeScript server from flagging Deno URL imports
+  // like `https://deno.land/std@.../http/server.ts` as errors.
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
+  "deno.lint": true,
+  "deno.unstable": false,
+  // Disable the standard TypeScript server inside the Deno paths
+  // to avoid dual-server conflicts.
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  }
+}

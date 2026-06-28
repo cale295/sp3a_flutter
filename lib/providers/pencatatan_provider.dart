@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/pencatatan_meteran_model.dart';
 import '../models/user_model.dart';
 import 'database_provider.dart';
@@ -50,18 +51,35 @@ class MeteranService {
   /// Inserts a meter reading AND immediately generates the tagihan row.
   ///
   /// Flow:
-  ///   1. Insert into `pencatatan_meteran`.
-  ///   2. Fetch the most recent PREVIOUS reading for this customer to compute pemakaian_m3.
-  ///   3. Fetch the applicable tarif for the customer's tipe_pelanggan.
-  ///   4. Insert a new row into `tagihan`.
+  ///   1. Upload the image to Supabase Storage bucket 'meteran'.
+  ///   2. Insert into `pencatatan_meteran`.
+  ///   3. Fetch the most recent PREVIOUS reading for this customer to compute pemakaian_m3.
+  ///   4. Fetch the applicable tarif for the customer's tipe_pelanggan.
+  ///   5. Insert a new row into `tagihan`.
   Future<void> petugasInputMeter({
     required String pelangganId,
     required String dicatatOlehId,
     required int periodeBulan,
     required int periodeTahun,
     required int angkaMeter,
+    required XFile imageFile,
   }) async {
-    // ── 1. Insert the meter reading ──────────────────────────────────────
+    // ── 1. Upload photo to Supabase storage bucket 'meteran' ──────────────
+    final bytes = await imageFile.readAsBytes();
+    final fileExtension = imageFile.name.split('.').last;
+    final path = 'meteran_${pelangganId}_${periodeTahun}_${periodeBulan}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+
+    await _client.storage.from('meteran').uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            cacheControl: '3600',
+            upsert: true,
+          ),
+        );
+    final publicUrl = _client.storage.from('meteran').getPublicUrl(path);
+
+    // ── 2. Insert the meter reading ──────────────────────────────────────
     final newReadingResponse = await _client
         .from('pencatatan_meteran')
         .insert({
@@ -70,6 +88,7 @@ class MeteranService {
           'periode_bulan': periodeBulan,
           'periode_tahun': periodeTahun,
           'angka_meteran': angkaMeter,
+          'foto_bukti': publicUrl,
         })
         .select()
         .single();

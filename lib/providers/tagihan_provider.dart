@@ -19,17 +19,37 @@ class TagihanService {
 
   Future<TagihanModel?> getActiveTagihanForCustomer(String pelangganId) async {
     final response = await _client
-        .from('tagihan')
-        .select()
-        .eq('pelanggan_id', pelangganId)
-        .eq('status_tagihan', 'belum_dibayar')
-        .order('id', ascending: false);
+      .from('tagihan')
+      .select()
+      .eq('pelanggan_id', pelangganId)
+      .eq('status_tagihan', 'belum_dibayar')
+      .order('id', ascending: false);
 
     final unpaidList = (response as List).map((json) => TagihanModel.fromJson(json)).toList();
     if (unpaidList.isEmpty) return null;
 
     final activeBill = unpaidList.first;
     final jumlahBulanTunggakan = unpaidList.length - 1;
+
+    // Fetch foto_bukti from corresponding pencatatan_meteran entry
+    String? fotoBuktiUrl;
+    try {
+      final pencatatanResponse = await _client
+          .from('pencatatan_meteran')
+          .select('foto_bukti')
+          .eq('id', activeBill.pencatatanId)
+          .single();
+      final rawFotoBukti = pencatatanResponse['foto_bukti'] as String?;
+      if (rawFotoBukti != null && rawFotoBukti.isNotEmpty) {
+        if (!rawFotoBukti.startsWith('http://') && !rawFotoBukti.startsWith('https://')) {
+          fotoBuktiUrl = _client.storage.from('meteran').getPublicUrl(rawFotoBukti);
+        } else {
+          fotoBuktiUrl = rawFotoBukti;
+        }
+      }
+    } catch (_) {
+      // Keep it null on error
+    }
 
     try {
       final userResponse = await _client
@@ -51,11 +71,13 @@ class TagihanService {
       return activeBill.copyWith(
         totalDenda: totalDenda,
         jumlahBulanTunggakan: jumlahBulanTunggakan,
+        fotoBukti: fotoBuktiUrl,
       );
     } catch (e) {
       return activeBill.copyWith(
         totalDenda: 0.0,
         jumlahBulanTunggakan: jumlahBulanTunggakan,
+        fotoBukti: fotoBuktiUrl,
       );
     }
   }
