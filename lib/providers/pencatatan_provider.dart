@@ -46,6 +46,26 @@ class MeteranService {
         .toList();
   }
 
+  Future<PencatatanMeteranModel?> getPreviousReading({
+    required String pelangganId,
+    required int currentMonth,
+    required int currentYear,
+  }) async {
+    final response = await _client
+        .from('pencatatan_meteran')
+        .select()
+        .eq('pelanggan_id', pelangganId)
+        .or('periode_tahun.lt.$currentYear,and(periode_tahun.eq.$currentYear,periode_bulan.lt.$currentMonth)')
+        .order('periode_tahun', ascending: false)
+        .order('periode_bulan', ascending: false)
+        .limit(1);
+
+    if ((response as List).isEmpty) {
+      return null;
+    }
+    return PencatatanMeteranModel.fromJson(response.first);
+  }
+
   // ── WRITE (Petugas only) ─────────────────────────────────────────────────
 
   /// Inserts a meter reading AND immediately generates the tagihan row.

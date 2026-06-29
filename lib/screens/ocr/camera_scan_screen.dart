@@ -1,7 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../../core/theme/app_colors.dart';
+import '../../services/image_processing_service.dart';
 
 class CameraScanScreen extends StatefulWidget {
   const CameraScanScreen({super.key});
@@ -89,36 +92,53 @@ class _CameraScanScreenState extends State<CameraScanScreen> with WidgetsBinding
   Future<void> _captureAndProcess() async {
     if (_controller == null || !_controller!.value.isInitialized || _isProcessing) return;
 
+    final size = MediaQuery.of(context).size;
+
     setState(() {
       _isProcessing = true;
     });
 
+    File? tempFile;
     try {
-      // Capture full, uncropped picture
+      // 1. Capture the original full-size photo
       final XFile photo = await _controller!.takePicture();
-      
-      // Process photo using Google ML Kit Text Recognition (Offline OCR)
-      final inputImage = InputImage.fromFilePath(photo.path);
+      final Uint8List originalBytes = await photo.readAsBytes();
+
+      // Bounding box dimensions (must exactly match CameraOverlayPainter)
+      final rectWidth = size.width * 0.85;
+      final rectHeight = 130.0;
+      final rectLeft = (size.width - rectWidth) / 2;
+      final rectTop = (size.height - rectHeight) / 2;
+
+      // 2. Crop and enhance the image in memory
+      final Uint8List enhancedBytes = await ImageProcessingService.cropAndEnhance(
+        imageBytes: originalBytes,
+        screenWidth: size.width,
+        screenHeight: size.height,
+        rectLeft: rectLeft,
+        rectTop: rectTop,
+        rectWidth: rectWidth,
+        rectHeight: rectHeight,
+      );
+
+      // 3. Write enhanced bytes to a temp file for ML Kit text recognition
+      final tempDir = Directory.systemTemp;
+      tempFile = File('${tempDir.path}/ocr_temp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await tempFile.writeAsBytes(enhancedBytes);
+
+      // 4. Pass the temp file path to Google ML Kit
+      final inputImage = InputImage.fromFilePath(tempFile.path);
       final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
       final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
       await textRecognizer.close();
 
       final text = recognizedText.text;
-      debugPrint("OCR Raw text: $text");
+      debugPrint("OCR Raw text on enhanced crop: $text");
 
-      // Extract numeric sequences using RegExp(r'\d+')
+      // 5. Clean output text using RegExp(r'\d+') to strip non-digit characters
       final regExp = RegExp(r'\d+');
       final matches = regExp.allMatches(text).map((m) => m.group(0)!).toList();
-      String detectedNumber = '';
-      
-      if (matches.isNotEmpty) {
-        // Search for a logical digit sequence of length 4 to 7
-        final logicalMatch = matches.firstWhere(
-          (m) => m.length >= 4 && m.length <= 7,
-          orElse: () => matches.first,
-        );
-        detectedNumber = logicalMatch;
-      }
+      final detectedNumber = matches.join('');
 
       if (mounted) {
         Navigator.pop(context, (detectedNumber, photo));
@@ -127,6 +147,14 @@ class _CameraScanScreenState extends State<CameraScanScreen> with WidgetsBinding
       debugPrint("OCR / Capture failed: $e");
       _showErrorSnackBar("Gagal memproses gambar: $e");
     } finally {
+      // Clean up temporary file
+      if (tempFile != null && await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          debugPrint("Failed to delete temp file: $e");
+        }
+      }
       if (mounted) {
         setState(() {
           _isProcessing = false;
