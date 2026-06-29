@@ -3,17 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'core/constants/supabase_constants.dart';
-import 'core/theme/app_theme.dart';
-import 'core/theme/app_colors.dart';
-import 'core/widgets/primary_button.dart';
-import 'providers/auth_provider.dart';
-import 'models/user_model.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/auth/change_password_screen.dart';
-import 'screens/admin/admin_dashboard.dart';
-import 'screens/petugas/petugas_dashboard.dart';
-import 'screens/pelanggan/pelanggan_dashboard.dart';
+import 'package:sp3a_projek/core/constants/supabase_constants.dart';
+import 'package:sp3a_projek/core/theme/app_theme.dart';
+import 'package:sp3a_projek/core/theme/app_colors.dart';
+import 'package:sp3a_projek/core/widgets/primary_button.dart';
+import 'package:sp3a_projek/providers/auth_provider.dart';
+import 'package:sp3a_projek/models/user_model.dart';
+import 'package:sp3a_projek/screens/auth/login_screen.dart';
+import 'package:sp3a_projek/screens/auth/change_password_screen.dart';
+import 'package:sp3a_projek/screens/admin/admin_dashboard.dart';
+import './screens/petugas/petugas_dashboard.dart';
+import 'package:sp3a_projek/screens/pelanggan/pelanggan_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

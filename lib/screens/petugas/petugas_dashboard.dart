@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/status_badge.dart';
@@ -146,7 +147,7 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
     super.dispose();
   }
 
-  // ── Numeric Input Dialog ───────────────────────────────────────────────────
+  // ──────────────── Numeric Input Dialog with OCR ────────────────
   void _showInputMeteranDialog(BuildContext context, UserModel customer) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -154,6 +155,8 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
     XFile? capturedImage;
+    bool isOcrLoading = false;
+    String? ocrStatusText;
 
     final now = DateTime.now();
     final bulanLabel = DateFormat('MMMM yyyy', 'id_ID').format(now);
@@ -175,10 +178,49 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                 if (photo != null) {
                   setSheetState(() {
                     capturedImage = photo;
+                    isOcrLoading = true;
+                    ocrStatusText = "Mendeteksi angka...";
+                  });
+
+                  // Process photo using Google ML Kit Text Recognition (Offline OCR)
+                  final inputImage = InputImage.fromFilePath(photo.path);
+                  final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+                  final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
+                  await textRecognizer.close();
+
+                  final text = recognizedText.text;
+                  debugPrint("OCR Raw text: $text");
+
+                  // Extract numeric sequences using RegExp(r'\d+')
+                  final regExp = RegExp(r'\d+');
+                  final matches = regExp.allMatches(text).map((m) => m.group(0)!).toList();
+                  String detectedNumber = '';
+                  
+                  if (matches.isNotEmpty) {
+                    // Search for a logical digit sequence of length 4 to 7
+                    final logicalMatch = matches.firstWhere(
+                      (m) => m.length >= 4 && m.length <= 7,
+                      orElse: () => matches.first,
+                    );
+                    detectedNumber = logicalMatch;
+                  }
+
+                  setSheetState(() {
+                    isOcrLoading = false;
+                    if (detectedNumber.isNotEmpty) {
+                      angkaController.text = detectedNumber;
+                      ocrStatusText = "Angka terdeteksi, silakan periksa kembali";
+                    } else {
+                      ocrStatusText = "Gagal mendeteksi angka, masukkan secara manual";
+                    }
                   });
                 }
               } catch (e) {
-                debugPrint("Error picking image: $e");
+                debugPrint("Error picking image/OCR: $e");
+                setSheetState(() {
+                  isOcrLoading = false;
+                  ocrStatusText = "Gagal memproses gambar: $e";
+                });
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -196,6 +238,7 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
             }
 
             final canSubmit = !isSubmitting &&
+                !isOcrLoading &&
                 angkaController.text.trim().isNotEmpty &&
                 capturedImage != null;
 
@@ -234,7 +277,7 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                             ),
                           ),
                           const SizedBox(height: 24),
-  
+
                           // Header
                           Row(
                             children: [
@@ -277,7 +320,7 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                             ],
                           ),
                           const SizedBox(height: 20),
-  
+
                           // Customer info chip
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -333,7 +376,111 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                             ),
                           ),
                           const SizedBox(height: 24),
-  
+
+                          // Camera/Photo Section (Moved above TextField)
+                          Text(
+                            'Foto Bukti Fisik Meteran',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark
+                                  ? AppColors.textDarkPrimary
+                                  : AppColors.textLightPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (capturedImage == null)
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(
+                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              icon: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+                              label: const Text(
+                                'Ambil Foto Meteran',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              onPressed: pickImage,
+                            )
+                          else
+                            Stack(
+                              alignment: Alignment.topRight,
+                              children: [
+                                Container(
+                                  height: 160,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                                    ),
+                                    image: DecorationImage(
+                                      image: FileImage(File(capturedImage!.path)),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: CircleAvatar(
+                                    backgroundColor: Colors.black.withAlpha(153),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.delete_rounded, color: Colors.white),
+                                      onPressed: () {
+                                        setSheetState(() {
+                                          capturedImage = null;
+                                          ocrStatusText = null;
+                                          isOcrLoading = false;
+                                          angkaController.clear();
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                          // OCR Status text below the image
+                          if (isOcrLoading || ocrStatusText != null) ...[
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                if (isOcrLoading) ...[
+                                  const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    ocrStatusText ?? '',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: isOcrLoading
+                                          ? (isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)
+                                          : AppColors.primary, // Water Blue
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+
                           // Label
                           Text(
                             'Angka Meter Saat Ini (m³)',
@@ -346,8 +493,8 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                             ),
                           ),
                           const SizedBox(height: 8),
-  
-                          // Numeric field — large font for readability
+
+                          // Numeric field — large font for readability (fully editable)
                           TextFormField(
                             controller: angkaController,
                             keyboardType: TextInputType.number,
@@ -378,10 +525,10 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                               ),
                               suffixText: 'm³',
                               suffixStyle: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.primary,
-                              ),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
                               filled: true,
                               fillColor: isDark
                                   ? AppColors.inputBgDark
@@ -428,78 +575,9 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                               height: 1.5,
                             ),
                           ),
-                          const SizedBox(height: 24),
-  
-                          // Camera/Photo Section
-                          Text(
-                            'Foto Bukti Fisik Meteran',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? AppColors.textDarkPrimary
-                                  : AppColors.textLightPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          if (capturedImage == null)
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                side: BorderSide(
-                                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              icon: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
-                              label: const Text(
-                                'Ambil Foto Bukti',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              onPressed: pickImage,
-                            )
-                          else
-                            Stack(
-                              alignment: Alignment.topRight,
-                              children: [
-                                Container(
-                                  height: 160,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                                    ),
-                                    image: DecorationImage(
-                                      image: FileImage(File(capturedImage!.path)),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: CircleAvatar(
-                                    backgroundColor: Colors.black.withAlpha(153),
-                                    child: IconButton(
-                                      icon: const Icon(Icons.delete_rounded, color: Colors.white),
-                                      onPressed: () {
-                                        setSheetState(() {
-                                          capturedImage = null;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-  
+
                           const SizedBox(height: 28),
-  
+
                           // Submit button
                           SizedBox(
                             height: 54,
@@ -535,13 +613,13 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                               onPressed: canSubmit
                                   ? () async {
                                       if (!formKey.currentState!.validate()) return;
-  
+
                                       setSheetState(() => isSubmitting = true);
-  
+
                                       final angka = int.parse(angkaController.text.trim());
                                       final authState = ref.read(authProvider);
                                       final petugasId = authState.user?.id ?? 'unknown';
-  
+
                                       final scaffoldMsg = ScaffoldMessenger.of(context);
                                       try {
                                         await ref
@@ -554,15 +632,15 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                                               angkaMeter: angka,
                                               imageFile: capturedImage!,
                                             );
-  
+
                                         if (sheetContext.mounted) {
                                           Navigator.pop(sheetContext);
                                         }
-  
+
                                         // Refresh list & bills
                                         ref.invalidate(pelangganWithStatusProvider);
                                         ref.invalidate(allBillsProvider);
-  
+
                                         scaffoldMsg.showSnackBar(
                                           SnackBar(
                                             content: Row(

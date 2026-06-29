@@ -246,24 +246,26 @@ async function handleWebhook(
     return jsonResponse({ message: "Notification received. No action taken." });
   }
 
-  // ── Step 5: FIX 2 — Extract tagihan_id by splitting order_id on '-' ───────
-  // order_id format is: "${tagihan_id}-${timestamp}"  e.g. "42-1719559200000"
-  // We always take the FIRST segment before the first dash as the tagihan_id.
+  // ── Step 5: Clean and Extract tagihan_id ───────────────────────────────────
+  // order_id is formatted as: "${tagihan_id}-${timestamp}" (e.g., "42-1719559200000" or "TG-001-1687001234").
+  // We locate the last dash to remove only the appended timestamp.
   const orderIdStr = String(order_id);
-  const orderIdParts = orderIdStr.split("-");
-  const tagihanIdStr = orderIdParts[0]; // "42" from "42-1719559200000"
+  const lastDashIndex = orderIdStr.lastIndexOf("-");
+  const cleanTagihanIdStr = lastDashIndex !== -1 ? orderIdStr.substring(0, lastDashIndex) : orderIdStr;
 
   console.log(
-    `[webhook] ▶ Parsing tagihan_id from order_id="${orderIdStr}":` +
-    ` parts=${JSON.stringify(orderIdParts)}, extracted first segment="${tagihanIdStr}"`
+    `[webhook] ▶ Parsing order_id="${orderIdStr}": ` +
+    `lastDashIndex=${lastDashIndex}, cleanTagihanIdStr="${cleanTagihanIdStr}"`
   );
 
-  const tagihanId = parseInt(tagihanIdStr, 10);
+  const cleanTagihanId = isNaN(Number(cleanTagihanIdStr))
+    ? cleanTagihanIdStr
+    : parseInt(cleanTagihanIdStr, 10);
 
-  if (isNaN(tagihanId) || tagihanId <= 0) {
+  if (!cleanTagihanIdStr || (typeof cleanTagihanId === "number" && cleanTagihanId <= 0)) {
     console.error(
       `[webhook] ✖ FAILED to parse a valid tagihan_id from order_id="${orderIdStr}". ` +
-      `Parsed value="${tagihanIdStr}" → parseInt result=${tagihanId}.`
+      `Parsed value="${cleanTagihanIdStr}"`
     );
     return errorResponse(
       `Cannot extract valid tagihan_id from order_id="${orderIdStr}"`,
@@ -271,11 +273,10 @@ async function handleWebhook(
     );
   }
 
-  console.log(`[webhook] ✔ Extracted tagihan_id=${tagihanId} from order_id="${orderIdStr}"`);
+  console.log(`[webhook] ✔ Extracted cleanTagihanId=${cleanTagihanId} from order_id="${orderIdStr}"`);
 
-  // ── Step 6: FIX 3 — Create Supabase admin client with Service Role Key ────
-  // The Service Role Key bypasses ALL Row Level Security (RLS) policies.
-  // This is required because the webhook comes from Midtrans (unauthenticated).
+  // ── Step 6: Create Supabase admin client with Service Role Key ─────────────
+  // The Service Role Key bypasses Row Level Security (RLS) policies.
   let supabase;
   try {
     supabase = createAdminClient();
@@ -290,15 +291,15 @@ async function handleWebhook(
 
   // ── Step 7: Update the tagihan record ─────────────────────────────────────
   console.log(
-    `[webhook] ▶ Attempting to update tagihan where id=${tagihanId} ` +
+    `[webhook] ▶ Attempting to update tagihan where id=${cleanTagihanId} ` +
     `→ SET status_tagihan='lunas' ...`
   );
 
   const { data: updateData, error: updateError, count } = await supabase
     .from("tagihan")
     .update({ status_tagihan: "lunas" })
-    .eq("id", tagihanId)
-    .select(); // Return updated rows so we can confirm the update happened
+    .eq("id", cleanTagihanId)
+    .select();
 
   // ── Step 8: Log the full DB result for debugging ──────────────────────────
   console.log("[webhook] ▶ Supabase update result:");
@@ -308,7 +309,7 @@ async function handleWebhook(
 
   if (updateError) {
     console.error(
-      `[webhook] ✖ DATABASE UPDATE FAILED for tagihan id=${tagihanId}. ` +
+      `[webhook] ✖ DATABASE UPDATE FAILED for tagihan id=${cleanTagihanId}. ` +
       `Error code="${updateError.code}", message="${updateError.message}", ` +
       `details="${updateError.details}", hint="${updateError.hint}"`
     );
@@ -316,27 +317,72 @@ async function handleWebhook(
   }
 
   if (!updateData || updateData.length === 0) {
-    // The query ran without error but no rows were affected.
-    // This means no tagihan with that ID exists in the database.
     console.error(
-      `[webhook] ✖ NO ROWS UPDATED — tagihan with id=${tagihanId} was not found ` +
+      `[webhook] ✖ NO ROWS UPDATED — tagihan with id=${cleanTagihanId} was not found ` +
       `in the database. Check that the tagihan_id is correct and the record exists.`
     );
     return errorResponse(
-      `No tagihan record found with id=${tagihanId}`,
+      `No tagihan record found with id=${cleanTagihanId}`,
       404
     );
   }
 
   console.log(
-    `[webhook] ✔✔ SUCCESS — tagihan id=${tagihanId} updated to status_tagihan='lunas'. ` +
+    `[webhook] ✔✔ SUCCESS — tagihan id=${cleanTagihanId} updated to status_tagihan='lunas'. ` +
     `Updated row: ${JSON.stringify(updateData[0])}`
   );
 
+  // ── Step 9: Insert record into pembayaran table ───────────────────────────
+  // Generate a custom pembayaran ID: SP3A-[Clean_Tagihan_ID]-[Random_3_Digits]
+  const random3Digits = Math.floor(100 + Math.random() * 900);
+  const customPembayaranId = `SP3A-${cleanTagihanIdStr}-${random3Digits}`;
+
+  const grossAmountVal = typeof gross_amount === "number"
+    ? gross_amount
+    : parseFloat(String(gross_amount || 0));
+  const paymentType = (body.payment_type as string) || "other";
+  const waktuBayar = (body.transaction_time as string) || new Date().toISOString();
+
+  const pembayaranPayload = {
+    id: customPembayaranId,
+    tagihan_id: cleanTagihanId,
+    jumlah_bayar: grossAmountVal,
+    metode_pembayaran: paymentType,
+    status_pembayaran: "sukses",
+    waktu_bayar: waktuBayar,
+  };
+
+  console.log('Cleaned Tagihan ID:', cleanTagihanId);
+  console.log(
+    `[webhook] ▶ Attempting to insert pembayaran record with custom id="${customPembayaranId}":`,
+    JSON.stringify(pembayaranPayload, null, 2)
+  );
+
+  const { data: pembayaranData, error: pembayaranError } = await supabase
+    .from("pembayaran")
+    .insert(pembayaranPayload)
+    .select();
+
+  console.log("[webhook] ▶ Supabase insert pembayaran result:");
+  console.log(`  → error  : ${pembayaranError ? JSON.stringify(pembayaranError) : "null (no error)"}`);
+  console.log(`  → data   : ${JSON.stringify(pembayaranData)}`);
+
+  if (pembayaranError) {
+    console.error(
+      `[webhook] ✖ DATABASE INSERT PEMBAYARAN FAILED for tagihan id=${cleanTagihanId}. ` +
+      `Error code="${pembayaranError.code}", message="${pembayaranError.message}", ` +
+      `details="${pembayaranError.details}", hint="${pembayaranError.hint}"`
+    );
+    return errorResponse(`DB insert pembayaran failed: ${pembayaranError.message}`, 500);
+  }
+
+  console.log(`[webhook] ✔✔ SUCCESS — pembayaran record inserted successfully.`);
+
   return jsonResponse({
-    message: `Payment confirmed. Tagihan id=${tagihanId} updated to lunas.`,
-    tagihan_id: tagihanId,
+    message: `Payment confirmed. Tagihan id=${cleanTagihanId} updated to lunas, and pembayaran logged.`,
+    tagihan_id: cleanTagihanId,
     order_id: orderIdStr,
+    pembayaran_id: customPembayaranId,
   });
 }
 
