@@ -9,6 +9,7 @@ import '../../providers/database_provider.dart';
 import '../../providers/tagihan_provider.dart';
 import '../../providers/pencatatan_provider.dart';
 import 'widgets/input_meteran_dialog_content.dart';
+import 'pelanggan_detail_screen.dart';
 
 class PetugasDashboard extends ConsumerStatefulWidget {
   const PetugasDashboard({super.key});
@@ -565,18 +566,24 @@ class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
                         itemBuilder: (context, index) {
                           final customer = filtered[index];
 
-                          // Find latest bill for this customer
+                          // Check if they have ANY bills where status_tagihan is 'belum_dibayar'
                           final customerBills = billsList.where((b) => b.pelangganId == customer.id).toList();
-
-                          String statusLabel = 'Belum Ada Tagihan';
-                          if (customerBills.isNotEmpty) {
-                            statusLabel = customerBills.first.statusTagihan.dbValue;
-                          }
+                          final hasUnpaid = customerBills.any((b) => b.statusTagihan.dbValue == 'belum_dibayar' || b.statusTagihan.dbValue == 'belum_bayar');
+                          final String statusLabel = hasUnpaid ? 'Ada Tunggakan' : 'Lunas Semua';
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: CustomCard(
-                              child: Row(
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PelangganDetailScreen(customer: customer),
+                                  ),
+                                );
+                              },
+                              child: CustomCard(
+                                child: Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(10),
@@ -622,7 +629,8 @@ class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
                                 ],
                               ),
                             ),
-                          );
+                          ),
+                        );
                         },
                       ),
                     );

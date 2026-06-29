@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../models/user_model.dart';
 
 class AuthState {
@@ -45,8 +47,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthState();
       } else {
         await fetchUserProfile(session.user.id);
+        if (state.isAuthenticated && state.user?.role == UserRole.pelanggan) {
+          await updateFcmToken();
+        }
       }
     });
+  }
+
+  Future<void> updateFcmToken() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      final token = await messaging.getToken();
+      if (token != null) {
+        await _client
+            .from('users')
+            .update({'fcm_token': token})
+            .eq('id', userId);
+      }
+    } catch (e) {
+      // Fail silently to prevent login errors in environments without Firebase config
+      debugPrint('Firebase Messaging Token update failed: $e');
+    }
   }
 
   Future<void> signIn(String identifier, String password) async {

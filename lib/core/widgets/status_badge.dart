@@ -22,6 +22,7 @@ class StatusBadge extends StatelessWidget {
     switch (normalized) {
       case 'lunas':
       case 'sukses':
+      case 'lunas semua':
         color = AppColors.success.withAlpha(31);
         textColor = AppColors.success;
         label = normalized.toUpperCase();
@@ -29,6 +30,7 @@ class StatusBadge extends StatelessWidget {
       case 'belum dibayar':
       case 'belum bayar':
       case 'gagal':
+      case 'ada tunggakan':
         color = AppColors.error.withAlpha(31);
         textColor = AppColors.error;
         label = normalized.toUpperCase();

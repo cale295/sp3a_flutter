@@ -14,6 +14,7 @@ import '../../providers/database_provider.dart';
 import '../../providers/pencatatan_provider.dart';
 import '../../services/midtrans_service.dart';
 import 'midtrans_payment_screen.dart';
+import 'riwayat_pembayaran_screen.dart';
 
 class PelangganDashboard extends ConsumerStatefulWidget {
   const PelangganDashboard({super.key});
@@ -46,7 +47,7 @@ class _PelangganDashboardState extends ConsumerState<PelangganDashboard> {
         },
       ),
       _BillsTab(customerId: customer.id),
-      _HistoryTab(customerId: customer.id),
+      RiwayatPembayaranScreen(customerId: customer.id),
     ];
 
     return Scaffold(
@@ -1427,165 +1428,6 @@ class DashedDivider extends StatelessWidget {
   }
 }
 
-// ==========================================
-// TAB 3: RIWAYAT PEMBAYARAN
-// ==========================================
-class _HistoryTab extends ConsumerWidget {
-  final String customerId;
-  const _HistoryTab({required this.customerId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final paymentHistoryAsync = ref.watch(paymentHistoryProvider(customerId));
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(paymentHistoryProvider(customerId));
-      },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Riwayat Pembayaran',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Riwayat lengkap transaksi pembayaran tagihan air Anda.',
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            paymentHistoryAsync.when(
-              data: (payments) {
-                if (payments.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 48),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 48,
-                            color: (isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)
-                                .withAlpha(120),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Belum ada riwayat pembayaran.',
-                            style: TextStyle(
-                              color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: payments.length,
-                  itemBuilder: (context, index) {
-                    final tx = payments[index];
-                    final dateStr = DateFormat('dd MMM yyyy, HH:mm').format(tx.waktuBayar);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: CustomCard(
-                        padding: const EdgeInsets.all(18),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: AppColors.success.withAlpha(20),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(
-                                Icons.check_rounded,
-                                color: AppColors.success,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    tx.metodePembayaran,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                      letterSpacing: -0.2,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    dateStr,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark
-                                          ? AppColors.textDarkSecondary
-                                          : AppColors.textLightSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'ID: ${tx.id.length > 20 ? '${tx.id.substring(0, 20)}…' : tx.id}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: (isDark
-                                          ? AppColors.textDarkSecondary
-                                          : AppColors.textLightSecondary)
-                                          .withAlpha(150),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              formatter.format(tx.jumlahBayar),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15,
-                                color: AppColors.primary,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(
-                child: Text('Gagal memuat riwayat: $err',
-                    style: const TextStyle(color: AppColors.error)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ==========================================
 // SUB-WIDGET: Payment Gateway Bottom Sheet

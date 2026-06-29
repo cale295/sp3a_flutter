@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "233617058564",
+    "project_id": "sp3a-f4e45",
+    "storage_bucket": "sp3a-f4e45.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:233617058564:android:09e1023b9482c32f413e51",
+        "android_client_info": {
+          "package_name": "com.example.sp3a"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvrneO6v_1Dh8fFxObizEhSTUMN-OKbDY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

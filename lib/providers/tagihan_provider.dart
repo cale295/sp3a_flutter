@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/tagihan_model.dart';
 import '../models/pembayaran_model.dart';
 import '../models/user_model.dart';
+import '../models/pembayaran_detail_model.dart';
+import '../models/tagihan_with_pencatatan.dart';
 
 class TagihanService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -140,11 +142,22 @@ class TagihanService {
             'total_denda': totalDenda,
           })
           .eq('id', tagihanId);
-
       return true;
     } catch (e) {
       throw Exception('Payment simulation failed: $e');
     }
+  }
+
+  Future<List<PembayaranDetailModel>> getPaymentsWithDetails(String pelangganId) async {
+    final response = await _client
+        .from('pembayaran')
+        .select('*, tagihan!inner(*, pencatatan_meteran(*))')
+        .eq('tagihan.pelanggan_id', pelangganId)
+        .order('waktu_bayar', ascending: false);
+
+    return (response as List)
+        .map((json) => PembayaranDetailModel.fromJson(json))
+        .toList();
   }
 }
 
@@ -160,10 +173,23 @@ final paymentHistoryProvider = FutureProvider.family.autoDispose<List<Pembayaran
   return ref.watch(tagihanServiceProvider).getPaymentsForCustomer(pelangganId);
 });
 
+final paymentHistoryWithDetailsProvider = FutureProvider.family.autoDispose<List<PembayaranDetailModel>, String>((ref, pelangganId) async {
+  return ref.watch(tagihanServiceProvider).getPaymentsWithDetails(pelangganId);
+});
+
 final customerBillsProvider = FutureProvider.family.autoDispose<List<TagihanModel>, String>((ref, pelangganId) async {
   return ref.watch(tagihanServiceProvider).getTagihanForCustomer(pelangganId);
 });
 
 final allBillsProvider = FutureProvider.autoDispose<List<TagihanModel>>((ref) async {
   return ref.watch(tagihanServiceProvider).getAllTagihan();
+});
+
+final tagihanWithPencatatanProvider = FutureProvider.family.autoDispose<List<TagihanWithPencatatan>, String>((ref, pelangganId) async {
+  final response = await Supabase.instance.client
+      .from('tagihan')
+      .select('*, pencatatan_meteran(*)')
+      .eq('pelanggan_id', pelangganId)
+      .order('id', ascending: false);
+  return (response as List).map((json) => TagihanWithPencatatan.fromJson(json)).toList();
 });
