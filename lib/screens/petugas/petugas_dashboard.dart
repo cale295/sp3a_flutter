@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import '../ocr/camera_scan_screen.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/custom_card.dart';
 import '../../core/widgets/status_badge.dart';
@@ -155,12 +155,10 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
     XFile? capturedImage;
-    bool isOcrLoading = false;
     String? ocrStatusText;
-
+    bool isOcrLoading = false;
     final now = DateTime.now();
     final bulanLabel = DateFormat('MMMM yyyy', 'id_ID').format(now);
-    final picker = ImagePicker();
 
     showModalBottomSheet(
       context: context,
@@ -169,44 +167,19 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            Future<void> pickImage() async {
+            Future<void> openCameraScan() async {
               try {
-                final XFile? photo = await picker.pickImage(
-                  source: ImageSource.camera,
-                  imageQuality: 70,
+                final result = await Navigator.push<(String, XFile)>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CameraScanScreen(),
+                  ),
                 );
-                if (photo != null) {
+
+                if (result != null) {
+                  final (detectedNumber, photo) = result;
                   setSheetState(() {
                     capturedImage = photo;
-                    isOcrLoading = true;
-                    ocrStatusText = "Mendeteksi angka...";
-                  });
-
-                  // Process photo using Google ML Kit Text Recognition (Offline OCR)
-                  final inputImage = InputImage.fromFilePath(photo.path);
-                  final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-                  final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
-                  await textRecognizer.close();
-
-                  final text = recognizedText.text;
-                  debugPrint("OCR Raw text: $text");
-
-                  // Extract numeric sequences using RegExp(r'\d+')
-                  final regExp = RegExp(r'\d+');
-                  final matches = regExp.allMatches(text).map((m) => m.group(0)!).toList();
-                  String detectedNumber = '';
-                  
-                  if (matches.isNotEmpty) {
-                    // Search for a logical digit sequence of length 4 to 7
-                    final logicalMatch = matches.firstWhere(
-                      (m) => m.length >= 4 && m.length <= 7,
-                      orElse: () => matches.first,
-                    );
-                    detectedNumber = logicalMatch;
-                  }
-
-                  setSheetState(() {
-                    isOcrLoading = false;
                     if (detectedNumber.isNotEmpty) {
                       angkaController.text = detectedNumber;
                       ocrStatusText = "Angka terdeteksi, silakan periksa kembali";
@@ -216,24 +189,10 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                   });
                 }
               } catch (e) {
-                debugPrint("Error picking image/OCR: $e");
+                debugPrint("Error navigating to camera scan: $e");
                 setSheetState(() {
-                  isOcrLoading = false;
                   ocrStatusText = "Gagal memproses gambar: $e";
                 });
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Akses kamera ditolak atau bermasalah: $e'),
-                      backgroundColor: AppColors.error,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      margin: const EdgeInsets.all(16),
-                    ),
-                  );
-                }
               }
             }
 
@@ -408,23 +367,27 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              onPressed: pickImage,
+                              onPressed: openCameraScan,
                             )
                           else
                             Stack(
                               alignment: Alignment.topRight,
                               children: [
                                 Container(
-                                  height: 160,
+                                  height: 200,
                                   width: double.infinity,
                                   decoration: BoxDecoration(
+                                    color: Colors.black87,
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
                                       color: isDark ? AppColors.borderDark : AppColors.borderLight,
                                     ),
-                                    image: DecorationImage(
-                                      image: FileImage(File(capturedImage!.path)),
-                                      fit: BoxFit.cover,
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Image.file(
+                                      File(capturedImage!.path),
+                                      fit: BoxFit.contain,
                                     ),
                                   ),
                                 ),
