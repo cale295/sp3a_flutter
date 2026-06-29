@@ -14,6 +14,8 @@ import 'package:sp3a_projek/screens/auth/change_password_screen.dart';
 import 'package:sp3a_projek/screens/admin/admin_dashboard.dart';
 import './screens/petugas/petugas_dashboard.dart';
 import 'package:sp3a_projek/screens/pelanggan/pelanggan_dashboard.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +30,17 @@ void main() async {
     debugPrint("Failed to load .env: $e");
   }
 
+  // ===== INISIALISASI FIREBASE TAMBAHKAN DI SINI =====
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint("Firebase berhasil dinyalakan!");
+  } catch (e) {
+    debugPrint("Gagal menyalakan Firebase: $e");
+  }
+  // ===================================================
+
   bool isSupabaseInitialized = false;
   String? initError;
 
@@ -39,7 +52,7 @@ void main() async {
     if (url.isNotEmpty && key.isNotEmpty) {
       await Supabase.initialize(
         url: url,
-        publishableKey: key,
+        anonKey: key, // Note: gw ubah publishableKey jadi anonKey karena standar supabase_flutter pakai ini
       );
       isSupabaseInitialized = true;
     } else {
