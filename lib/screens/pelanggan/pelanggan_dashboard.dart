@@ -15,6 +15,7 @@ import '../../providers/pencatatan_provider.dart';
 import '../../services/midtrans_service.dart';
 import 'midtrans_payment_screen.dart';
 import 'riwayat_pembayaran_screen.dart';
+import '../../services/fcm_service.dart';
 
 class PelangganDashboard extends ConsumerStatefulWidget {
   const PelangganDashboard({super.key});
@@ -25,6 +26,16 @@ class PelangganDashboard extends ConsumerStatefulWidget {
 
 class _PelangganDashboardState extends ConsumerState<PelangganDashboard> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final fcmService = ref.read(fcmServiceProvider);
+      fcmService.saveDeviceToken();
+      fcmService.listenToTokenRefresh();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
