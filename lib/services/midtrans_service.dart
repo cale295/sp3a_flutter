@@ -64,8 +64,8 @@ class MidtransService {
       debugPrint('[MidtransService] Got redirect_url: $redirectUrl');
       return MidtransTransactionResult(redirectUrl: redirectUrl);
     } on FunctionException catch (e) {
-      debugPrint('[MidtransService] FunctionException: ${e.reasonPhrase}');
-      throw Exception('Gagal menghubungi server pembayaran: ${e.reasonPhrase}');
+      debugPrint('[MidtransService] FunctionException: status=${e.status}, reason=${e.reasonPhrase}, details=${e.details}');
+      throw Exception('Gagal menghubungi server pembayaran: ${e.reasonPhrase} (${e.details})');
     } catch (e) {
       debugPrint('[MidtransService] Unexpected error: $e');
       rethrow;
@@ -112,8 +112,8 @@ class MidtransService {
       debugPrint('[MidtransService] Got redirect_url: $redirectUrl');
       return MidtransTransactionResult(redirectUrl: redirectUrl);
     } on FunctionException catch (e) {
-      debugPrint('[MidtransService] FunctionException: ${e.reasonPhrase}');
-      throw Exception('Gagal menghubungi server pembayaran: ${e.reasonPhrase}');
+      debugPrint('[MidtransService] FunctionException: status=${e.status}, reason=${e.reasonPhrase}, details=${e.details}');
+      throw Exception('Gagal menghubungi server pembayaran: ${e.reasonPhrase} (${e.details})');
     } catch (e) {
       debugPrint('[MidtransService] Unexpected error: $e');
       rethrow;

@@ -15,6 +15,8 @@ import '../../core/widgets/logout_confirmation_dialog.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../providers/statistics_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/laporan_pembayaran_model.dart';
 
 class AdminDashboardMain extends ConsumerStatefulWidget {
   const AdminDashboardMain({super.key});
@@ -1007,18 +1009,118 @@ class _ManageTarifViewState extends ConsumerState<_ManageTarifView> {
       ],
     );
   }
-}
-
-// --- SUB-VIEW: Laporan Keuangan ---
-class _LaporanView extends ConsumerWidget {
+}// --- SUB-VIEW: Laporan Keuangan ---
+class _LaporanView extends ConsumerStatefulWidget {
   const _LaporanView();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reportsAsync = ref.watch(laporanProvider);
+  ConsumerState<_LaporanView> createState() => _LaporanViewState();
+}
+
+class _LaporanViewState extends ConsumerState<_LaporanView> {
+  String _selectedFilter = 'Semua';
+  List<LaporanPembayaran> _reports = [];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLaporan();
+  }
+
+  Future<void> _fetchLaporan() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final supabase = Supabase.instance.client;
+      var query = supabase.from('view_laporan_pembayaran').select();
+
+      if (_selectedFilter != 'Semua') {
+        query = query.eq('tipe_pelanggan', _selectedFilter);
+      }
+
+      final response = await query.order('waktu_bayar', ascending: false);
+
+      final reports = (response as List)
+          .map((json) => LaporanPembayaran.fromJson(json))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _reports = reports;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+      }
+    }
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required String value,
+    required bool isDark,
+  }) {
+    final isSelected = _selectedFilter == value;
+    return GestureDetector(
+      onTap: () {
+        if (_selectedFilter != value) {
+          setState(() {
+            _selectedFilter = value;
+          });
+          _fetchLaporan();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF0EA5E9)
+              : (isDark ? AppColors.borderDark : Colors.grey[200]),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0EA5E9)
+                : (isDark ? Colors.grey[700]! : Colors.transparent),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+                ? Colors.white
+                : (isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary),
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+    double totalIncome = 0;
+    int totalTx = 0;
+    for (var r in _reports) {
+      if (r.statusPembayaran.toLowerCase() == 'sukses') {
+        totalIncome += r.jumlahBayar;
+        totalTx++;
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1026,137 +1128,221 @@ class _LaporanView extends ConsumerWidget {
         Text('Laporan Pembayaran Air', style: theme.textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
         const SizedBox(height: 4),
         Text('Analisis konsumsi pemakaian air bulanan dan rekapitulasi pembayaran.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary, fontSize: 13)),
-        const SizedBox(height: 32),
-        reportsAsync.when(
-          data: (reports) {
-            double totalIncome = 0;
-            int totalTx = 0;
-            for (var r in reports) {
-              if (r.statusPembayaran.toLowerCase() == 'sukses') {
-                totalIncome += r.jumlahBayar;
-                totalTx++;
-              }
-            }
+        const SizedBox(height: 20),
 
-            return Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildFilterChip(label: 'Semua Tipe', value: 'Semua', isDark: isDark),
+              const SizedBox(width: 10),
+              _buildFilterChip(label: 'Rumah Tangga', value: 'rumah_tangga', isDark: isDark),
+              const SizedBox(width: 10),
+              _buildFilterChip(label: 'Bisnis', value: 'bisnis', isDark: isDark),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        if (_isLoading) ...[
+          const Expanded(child: Center(child: CircularProgressIndicator())),
+        ] else if (_errorMessage != null) ...[
+          Expanded(child: Center(child: Text('Gagal memuat laporan: $_errorMessage', style: const TextStyle(color: AppColors.error)))),
+        ] else ...[
+          Row(
+            children: [
+              Expanded(
+                child: CustomCard(
+                  color: AppColors.primary.withAlpha(10),
+                  hasBorder: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Card 1
-                      Expanded(
-                        child: CustomCard(
-                          color: AppColors.primary.withAlpha(10),
-                          hasBorder: true,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Total Pendapatan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary)),
-                              const SizedBox(height: 12),
-                              Text(formatter.format(totalIncome), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                              const SizedBox(height: 4),
-                              Text('Dari $totalTx transaksi lunas', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      // Card 2
-                      Expanded(
-                        child: CustomCard(
-                          color: AppColors.secondary.withAlpha(10),
-                          hasBorder: true,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Total Transaksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.secondary)),
-                              const SizedBox(height: 12),
-                              Text('$totalTx Lunas', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                              const SizedBox(height: 4),
-                              Text('Jumlah pembayaran berhasil', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      // Card 3
-                      Expanded(
-                        child: CustomCard(
-                          color: AppColors.warning.withAlpha(10),
-                          hasBorder: true,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Rata-rata Pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warning)),
-                              const SizedBox(height: 12),
-                              Text(formatter.format(totalTx > 0 ? totalIncome / totalTx : 0), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                              const SizedBox(height: 4),
-                              Text('Nilai rata-rata tagihan lunas', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                            ],
-                          ),
-                        ),
-                      ),
+                      const Text('Total Pendapatan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary)),
+                      const SizedBox(height: 12),
+                      Text(formatter.format(totalIncome), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text('Dari $totalTx transaksi lunas', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
                     ],
                   ),
-                  const SizedBox(height: 36),
-                  Text('Rincian Pembayaran Pelanggan', style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: CustomCard(
-                      padding: EdgeInsets.zero,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 320),
-                              child: DataTable(
-                                headingRowColor: WidgetStateProperty.all(isDark ? Colors.black12 : AppColors.bgLight),
-                                dataRowMinHeight: 56,
-                                dataRowMaxHeight: 56,
-                                horizontalMargin: 24,
-                                columns: const [
-                                  DataColumn(label: Text('Pelanggan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                                  DataColumn(label: Text('Tipe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                                  DataColumn(label: Text('Periode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                                  DataColumn(label: Text('Waktu Bayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                                  DataColumn(label: Text('Metode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                                  DataColumn(label: Text('Jumlah Bayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                                ],
-                                rows: reports.map((r) {
-                                  final dateStr = r.waktuBayar != null
-                                      ? DateFormat('dd MMM yyyy, HH:mm').format(r.waktuBayar!)
-                                      : '-';
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(Text(r.namaPelanggan.isNotEmpty ? r.namaPelanggan : '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5))),
-                                      DataCell(Text(r.tipePelanggan.toUpperCase(), style: const TextStyle(fontSize: 13))),
-                                      DataCell(Text('Bulan ${r.periodeBulan} - ${r.periodeTahun}', style: const TextStyle(fontSize: 13))),
-                                      DataCell(Text(dateStr, style: const TextStyle(fontSize: 13))),
-                                      DataCell(Text(r.metodePembayaran.toUpperCase(), style: const TextStyle(fontSize: 13))),
-                                      DataCell(Text(formatter.format(r.jumlahBayar), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary))),
-                                      DataCell(StatusBadge(status: r.statusPembayaran)),
-                                    ],
-                                  );
-                                }).toList(),
-                              ),
-                            ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: CustomCard(
+                  color: AppColors.secondary.withAlpha(10),
+                  hasBorder: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Total Transaksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.secondary)),
+                      const SizedBox(height: 12),
+                      Text('$totalTx Lunas', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text('Jumlah pembayaran berhasil', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: CustomCard(
+                  color: AppColors.warning.withAlpha(10),
+                  hasBorder: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Rata-rata Pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warning)),
+                      const SizedBox(height: 12),
+                      Text(formatter.format(totalTx > 0 ? totalIncome / totalTx : 0), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text('Nilai rata-rata tagihan lunas', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 36),
+          Text('Rincian Pembayaran Pelanggan', style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _reports.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long_rounded, color: isDark ? Colors.grey[700] : Colors.grey[300], size: 48),
+                        const SizedBox(height: 12),
+                        Text('Tidak ada rincian pembayaran ditemukan.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: _reports.length,
+                    itemBuilder: (context, index) {
+                      final r = _reports[index];
+                      final dateStr = r.waktuBayar != null
+                          ? DateFormat('dd MMM yyyy, HH:mm').format(r.waktuBayar!)
+                          : '-';
+                      final isBisnis = r.tipePelanggan.toLowerCase() == 'bisnis';
+
+                      return Card(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        surfaceTintColor: isDark ? AppColors.cardDark : Colors.white,
+                        elevation: 0,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: isDark ? AppColors.borderDark : Colors.grey.withAlpha(25),
                           ),
                         ),
-                      ),
-                    ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.cardDark : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(10),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isBisnis
+                                      ? Colors.orange.withAlpha(20)
+                                      : Colors.blue.withAlpha(20),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isBisnis
+                                      ? Icons.business_rounded
+                                      : Icons.home_rounded,
+                                  color: isBisnis ? Colors.orange : Colors.blue,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            r.namaPelanggan.isNotEmpty ? r.namaPelanggan : '-',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 15,
+                                              color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isBisnis
+                                                ? Colors.orange.withAlpha(25)
+                                                : Colors.blue.withAlpha(25),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            isBisnis ? 'Bisnis' : 'Rumah Tangga',
+                                            style: TextStyle(
+                                              color: isBisnis ? Colors.orange[800] : Colors.blue[800],
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Waktu Bayar: $dateStr',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Metode: ${r.metodePembayaran.toUpperCase()} • Periode: Bulan ${r.periodeBulan} - ${r.periodeTahun}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? AppColors.textDarkSecondary.withAlpha(180) : AppColors.textLightSecondary.withAlpha(180),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                formatter.format(r.jumlahBayar),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: isBisnis ? Colors.orange[700] : const Color(0xFF0EA5E9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ],
-              ),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Center(child: Text('Error loading reports: $err')),
-        ),
+          ),
+        ],
       ],
     );
   }

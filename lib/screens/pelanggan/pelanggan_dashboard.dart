@@ -953,6 +953,31 @@ class _BillsTabState extends ConsumerState<_BillsTab> {
                         final rate = tarif.hargaPerM3;
                         final abodemen = tarif.biayaAbodemen;
 
+                        if (bills.length == 1) {
+                          final billWithPencatatan = bills[0];
+                          final bill = billWithPencatatan.tagihan;
+                          final calculatedTotal = bill.pemakaianM3 == 0
+                              ? abodemen
+                              : (bill.pemakaianM3 * rate);
+                          final totalBayar = calculatedTotal + bill.totalDenda;
+
+                          return SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: _buildBillReceipt(
+                              context: context,
+                              bill: bill,
+                              rate: rate,
+                              abodemen: abodemen,
+                              calculatedTotal: calculatedTotal,
+                              totalBayar: totalBayar,
+                              formatter: formatter,
+                              isDark: isDark,
+                              periodeBulan: billWithPencatatan.periodeBulan,
+                              periodeTahun: billWithPencatatan.periodeTahun,
+                            ),
+                          );
+                        }
+
                         return ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
                           itemCount: bills.length,
@@ -964,20 +989,33 @@ class _BillsTabState extends ConsumerState<_BillsTab> {
                                 : (bill.pemakaianM3 * rate);
                             final totalBayar = calculatedTotal + bill.totalDenda;
 
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _buildBillReceipt(
-                                context: context,
-                                bill: bill,
-                                rate: rate,
-                                abodemen: abodemen,
-                                calculatedTotal: calculatedTotal,
-                                totalBayar: totalBayar,
-                                formatter: formatter,
-                                isDark: isDark,
-                                periodeBulan: billWithPencatatan.periodeBulan,
-                                periodeTahun: billWithPencatatan.periodeTahun,
-                              ),
+                            final List<String> listBulan = [
+                              '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                              'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                            ];
+                            final periodStr = "${listBulan[billWithPencatatan.periodeBulan]} ${billWithPencatatan.periodeTahun}";
+
+                            return _buildSimpleBillCard(
+                              context: context,
+                              bill: bill,
+                              periodStr: periodStr,
+                              totalBayar: totalBayar,
+                              formatter: formatter,
+                              isDark: isDark,
+                              onTap: () {
+                                _showBillDetailsBottomSheet(
+                                  context: context,
+                                  bill: bill,
+                                  rate: rate,
+                                  abodemen: abodemen,
+                                  calculatedTotal: calculatedTotal,
+                                  totalBayar: totalBayar,
+                                  formatter: formatter,
+                                  isDark: isDark,
+                                  periodeBulan: billWithPencatatan.periodeBulan,
+                                  periodeTahun: billWithPencatatan.periodeTahun,
+                                );
+                              },
                             );
                           },
                         );
@@ -1034,6 +1072,386 @@ class _BillsTabState extends ConsumerState<_BillsTab> {
               orElse: () => null,
             )
           : null,
+    );
+  }
+
+  Widget _buildSimpleBillCard({
+    required BuildContext context,
+    required TagihanModel bill,
+    required String periodStr,
+    required double totalBayar,
+    required NumberFormat formatter,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    final isSelected = _selectedTagihanIds.contains(bill.id);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: CustomCard(
+        onTap: onTap,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
+          children: [
+            Checkbox(
+              value: isSelected,
+              activeColor: AppColors.primary,
+              onChanged: (val) {
+                setState(() {
+                  if (val == true) {
+                    _selectedTagihanIds.add(bill.id);
+                  } else {
+                    _selectedTagihanIds.remove(bill.id);
+                  }
+                });
+              },
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tagihan Bulan $periodStr',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'No. Tagihan: #${bill.id}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  formatter.format(totalBayar),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: bill.jumlahBulanTunggakan > 0
+                        ? AppColors.error
+                        : (isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary),
+                  ),
+                ),
+                if (bill.jumlahBulanTunggakan > 0) ...[
+                  const SizedBox(height: 2),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withAlpha(20),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'Tunggakan',
+                      style: TextStyle(
+                        color: AppColors.error,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBillDetailsBottomSheet({
+    required BuildContext context,
+    required TagihanModel bill,
+    required double rate,
+    required double abodemen,
+    required double calculatedTotal,
+    required double totalBayar,
+    required NumberFormat formatter,
+    required bool isDark,
+    required int periodeBulan,
+    required int periodeTahun,
+  }) {
+    final List<String> listBulan = [
+      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    final periodeStr = "${listBulan[periodeBulan]} $periodeTahun";
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          12,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[700] : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Rincian Tagihan',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'No. Tagihan: #${bill.id}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  StatusBadge(status: bill.statusTagihan.dbValue),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Divider(
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                thickness: 1,
+              ),
+              const SizedBox(height: 16),
+              _buildReceiptRow(
+                label: 'Periode Tagihan',
+                value: periodeStr,
+                isDark: isDark,
+                isBold: true,
+              ),
+              const SizedBox(height: 14),
+              _buildReceiptRow(
+                label: 'Volume Pemakaian',
+                value: '${bill.pemakaianM3} m³',
+                isDark: isDark,
+              ),
+              const SizedBox(height: 14),
+              _buildReceiptRow(
+                label: 'Tarif Air',
+                value: bill.pemakaianM3 > 0
+                    ? '${bill.pemakaianM3} m³ × ${formatter.format(rate)}'
+                    : '-',
+                isDark: isDark,
+              ),
+              if (bill.pemakaianM3 == 0) ...[
+                const SizedBox(height: 14),
+                _buildReceiptRow(
+                  label: 'Biaya Abodemen',
+                  value: formatter.format(abodemen),
+                  isDark: isDark,
+                ),
+              ],
+              _buildSubtotalRow(
+                label: 'Subtotal',
+                value: formatter.format(calculatedTotal),
+                isDark: isDark,
+              ),
+              if (bill.jumlahBulanTunggakan > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.error.withAlpha(50),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Denda Tunggakan',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.error),
+                            ),
+                            Text(
+                              '${bill.jumlahBulanTunggakan} bulan belum dibayar',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.error.withAlpha(180),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        formatter.format(bill.totalDenda),
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.error),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              DashedDivider(
+                height: 1.5,
+                color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                dashWidth: 6,
+                dashGap: 4,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        bill.jumlahBulanTunggakan > 0 ? 'Total Pembayaran' : 'Total Tagihan',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Termasuk semua biaya',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    formatter.format(totalBayar),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 24,
+                      color: bill.jumlahBulanTunggakan > 0
+                          ? AppColors.error
+                          : (isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary),
+                    ),
+                  ),
+                ],
+              ),
+              if (bill.fotoBukti != null && bill.fotoBukti!.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Divider(
+                  color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  thickness: 1,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Bukti Pencatatan Meteran',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => _showFullScreenImage(context, bill.fotoBukti!),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Image.network(
+                        bill.fotoBukti!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.broken_image_rounded,
+                                  color: isDark ? Colors.grey[600] : Colors.grey[400],
+                                  size: 32,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Gagal memuat foto bukti',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 28),
+              PrimaryButton(
+                text: 'Tutup',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
