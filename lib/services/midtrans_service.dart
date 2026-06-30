@@ -71,6 +71,54 @@ class MidtransService {
       rethrow;
     }
   }
+
+  /// Calls the `create-transaction` action on the Edge Function for multiple bills.
+  Future<MidtransTransactionResult> createBulkTransaction({
+    required List<int> tagihanIds,
+    required double jumlahBayar,
+    required String pelangganName,
+  }) async {
+    debugPrint(
+      '[MidtransService] Invoking create-transaction (bulk): '
+      'tagihanIds=$tagihanIds, jumlahBayar=$jumlahBayar',
+    );
+
+    try {
+      final response = await _client.functions.invoke(
+        'midtrans-handler',
+        body: {
+          'action': 'create-transaction',
+          'tagihan_ids': tagihanIds,
+          'jumlah_bayar': jumlahBayar,
+          'pelanggan_name': pelangganName,
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>?;
+
+      if (data == null) {
+        throw Exception('Edge Function returned empty response.');
+      }
+
+      if (data.containsKey('error')) {
+        throw Exception('Edge Function error: ${data['error']}');
+      }
+
+      final redirectUrl = data['redirect_url'] as String?;
+      if (redirectUrl == null || redirectUrl.isEmpty) {
+        throw Exception('Edge Function did not return a valid redirect_url.');
+      }
+
+      debugPrint('[MidtransService] Got redirect_url: $redirectUrl');
+      return MidtransTransactionResult(redirectUrl: redirectUrl);
+    } on FunctionException catch (e) {
+      debugPrint('[MidtransService] FunctionException: ${e.reasonPhrase}');
+      throw Exception('Gagal menghubungi server pembayaran: ${e.reasonPhrase}');
+    } catch (e) {
+      debugPrint('[MidtransService] Unexpected error: $e');
+      rethrow;
+    }
+  }
 }
 
 /// Riverpod provider for [MidtransService].

@@ -16,6 +16,7 @@ import '../../services/midtrans_service.dart';
 import 'midtrans_payment_screen.dart';
 import 'riwayat_pembayaran_screen.dart';
 import '../../services/fcm_service.dart';
+import '../../core/widgets/logout_confirmation_dialog.dart';
 
 class PelangganDashboard extends ConsumerStatefulWidget {
   const PelangganDashboard({super.key});
@@ -118,7 +119,10 @@ class _PelangganDashboardState extends ConsumerState<PelangganDashboard> {
                 'Keluar',
                 style: TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600),
               ),
-              onPressed: () => ref.read(authProvider.notifier).signOut(),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (context) => const LogoutConfirmationDialog(),
+              ),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 minimumSize: const Size(0, 44),
@@ -816,11 +820,18 @@ class _ActionButton extends StatelessWidget {
 // ==========================================
 // TAB 2: TAGIHAN (BILLS) — Fintech-style receipt
 // ==========================================
-class _BillsTab extends ConsumerWidget {
+class _BillsTab extends ConsumerStatefulWidget {
   final String customerId;
-  const _BillsTab({required this.customerId});
+  const _BillsTab({super.key, required this.customerId});
 
-  void _openPaymentSheet(BuildContext context, WidgetRef ref, TagihanModel bill) {
+  @override
+  ConsumerState<_BillsTab> createState() => _BillsTabState();
+}
+
+class _BillsTabState extends ConsumerState<_BillsTab> {
+  final Set<int> _selectedTagihanIds = {};
+
+  void _openPaymentSheet(BuildContext context, List<TagihanModel> bills, double totalBayar) {
     final authState = ref.read(authProvider);
     final pelangganName = authState.user?.namaLengkap ?? 'Pelanggan';
 
@@ -829,14 +840,20 @@ class _BillsTab extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => _PaymentGatewaySheet(
-        bill: bill,
+        bills: bills,
+        totalBayar: totalBayar,
         pelangganName: pelangganName,
       ),
     ).then((result) {
       if (result == true) {
-        ref.invalidate(activeTagihanProvider(customerId));
-        ref.invalidate(paymentHistoryProvider(customerId));
-        ref.invalidate(customerReadingsProvider(customerId));
+        setState(() {
+          _selectedTagihanIds.clear();
+        });
+        ref.invalidate(activeTagihanProvider(widget.customerId));
+        ref.invalidate(paymentHistoryProvider(widget.customerId));
+        ref.invalidate(customerReadingsProvider(widget.customerId));
+        ref.invalidate(tagihanWithPencatatanProvider(widget.customerId));
+        ref.invalidate(unpaidTagihanProvider(widget.customerId));
       }
     });
   }
@@ -886,8 +903,8 @@ class _BillsTab extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeTagihanAsync = ref.watch(activeTagihanProvider(customerId));
+  Widget build(BuildContext context) {
+    final billsAsync = ref.watch(unpaidTagihanProvider(widget.customerId));
     final authState = ref.watch(authProvider);
     final userType = authState.user?.tipePelanggan ?? TipePelanggan.rumahTangga;
     final tarifAsync = ref.watch(tarifForTipeProvider(userType));
@@ -896,118 +913,165 @@ class _BillsTab extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(activeTagihanProvider(customerId));
-        ref.invalidate(tarifForTipeProvider(userType));
-      },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Tagihan Aktif',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.2,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(unpaidTagihanProvider(widget.customerId));
+          ref.invalidate(tarifForTipeProvider(userType));
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tagihan Air',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Detail tagihan dan pembayaran bulan ini',
-              style: TextStyle(
-                fontSize: 13,
-                color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+              const SizedBox(height: 4),
+              Text(
+                'Pilih tagihan yang ingin dibayar sekaligus',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            activeTagihanAsync.when(
-              data: (bill) {
-                if (bill == null) {
-                  return _buildAllClearCard(isDark);
-                }
+              const SizedBox(height: 20),
+              Expanded(
+                child: billsAsync.when(
+                  data: (bills) {
+                    if (bills.isEmpty) {
+                      return _buildAllClearCard(isDark);
+                    }
 
-                return tarifAsync.when(
-                  data: (tarif) {
-                    final rate = tarif.hargaPerM3;
-                    final abodemen = tarif.biayaAbodemen;
-                    final calculatedTotal = bill.pemakaianM3 == 0
-                        ? abodemen
-                        : (bill.pemakaianM3 * rate);
-                    final totalBayar = calculatedTotal + bill.totalDenda;
+                    return tarifAsync.when(
+                      data: (tarif) {
+                        final rate = tarif.hargaPerM3;
+                        final abodemen = tarif.biayaAbodemen;
 
-                    return _buildBillReceipt(
-                      context: context,
-                      ref: ref,
-                      bill: bill,
-                      rate: rate,
-                      abodemen: abodemen,
-                      calculatedTotal: calculatedTotal,
-                      totalBayar: totalBayar,
-                      formatter: formatter,
-                      isDark: isDark,
+                        return ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: bills.length,
+                          itemBuilder: (context, index) {
+                            final billWithPencatatan = bills[index];
+                            final bill = billWithPencatatan.tagihan;
+                            final calculatedTotal = bill.pemakaianM3 == 0
+                                ? abodemen
+                                : (bill.pemakaianM3 * rate);
+                            final totalBayar = calculatedTotal + bill.totalDenda;
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: _buildBillReceipt(
+                                context: context,
+                                bill: bill,
+                                rate: rate,
+                                abodemen: abodemen,
+                                calculatedTotal: calculatedTotal,
+                                totalBayar: totalBayar,
+                                formatter: formatter,
+                                isDark: isDark,
+                                periodeBulan: billWithPencatatan.periodeBulan,
+                                periodeTahun: billWithPencatatan.periodeTahun,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (err, _) => Center(
+                        child: Text('Gagal memuat tarif: $err',
+                            style: const TextStyle(color: AppColors.error)),
+                      ),
                     );
                   },
-                  loading: () => const Center(
-                    child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()),
-                  ),
+                  loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, _) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text('Gagal memuat tarif: $err',
-                          style: const TextStyle(color: AppColors.error)),
-                    ),
+                    child: Text('Gagal memuat tagihan: $err',
+                        style: const TextStyle(color: AppColors.error)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: _selectedTagihanIds.isNotEmpty
+          ? tarifAsync.maybeWhen(
+              data: (tarif) {
+                final rate = tarif.hargaPerM3;
+                final abodemen = tarif.biayaAbodemen;
+                double selectedTotal = 0;
+                final List<TagihanModel> selectedBills = [];
+
+                billsAsync.whenData((bills) {
+                  for (var item in bills) {
+                    final bill = item.tagihan;
+                    final calculatedTotal = bill.pemakaianM3 == 0 ? abodemen : (bill.pemakaianM3 * rate);
+                    final totalBayar = calculatedTotal + bill.totalDenda;
+
+                    if (_selectedTagihanIds.contains(bill.id)) {
+                      selectedTotal += totalBayar;
+                      selectedBills.add(bill);
+                    }
+                  }
+                });
+
+                return FloatingActionButton.extended(
+                  onPressed: () => _openPaymentSheet(context, selectedBills, selectedTotal),
+                  backgroundColor: AppColors.primary,
+                  icon: const Icon(Icons.payment_rounded, color: Colors.white),
+                  label: Text(
+                    'Bayar ${_selectedTagihanIds.length} Tagihan - ${formatter.format(selectedTotal)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 );
               },
-              loading: () => const Center(
-                child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()),
-              ),
-              error: (err, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Gagal memuat tagihan: $err',
-                      style: const TextStyle(color: AppColors.error)),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+              orElse: () => null,
+            )
+          : null,
     );
   }
 
   Widget _buildAllClearCard(bool isDark) {
     return CustomCard(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
       child: Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.success.withAlpha(20),
+                color: AppColors.primary.withAlpha(20),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 40),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.primary,
+                size: 48,
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Semua Tagihan Lunas!',
-              style: TextStyle(
+            const SizedBox(height: 20),
+            Text(
+              'Yeay! Semua tagihan sudah lunas.',
+              style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.w800,
-                fontSize: 17,
+                fontSize: 18,
                 letterSpacing: -0.3,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Terima kasih atas pembayaran tepat waktu.',
+              'Terima kasih telah melakukan pembayaran tepat waktu.',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
+                fontWeight: FontWeight.w500,
                 color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
                 height: 1.4,
               ),
@@ -1020,7 +1084,6 @@ class _BillsTab extends ConsumerWidget {
 
   Widget _buildBillReceipt({
     required BuildContext context,
-    required WidgetRef ref,
     required TagihanModel bill,
     required double rate,
     required double abodemen,
@@ -1028,18 +1091,25 @@ class _BillsTab extends ConsumerWidget {
     required double totalBayar,
     required NumberFormat formatter,
     required bool isDark,
+    required int periodeBulan,
+    required int periodeTahun,
   }) {
+    final List<String> listBulan = [
+      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    final periodeStr = "${listBulan[periodeBulan]} $periodeTahun";
+    final isSelected = _selectedTagihanIds.contains(bill.id);
+
     return Column(
       children: [
-        // ── Digital Receipt Card ─────────────────────────────────────────
         CustomCard(
           padding: EdgeInsets.zero,
           child: Column(
             children: [
-              // Receipt header
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: isDark
                       ? AppColors.primary.withAlpha(30)
@@ -1049,33 +1119,48 @@ class _BillsTab extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Tagihan Air Bulan Ini',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                            color: AppColors.primary,
+                    Checkbox(
+                      value: isSelected,
+                      activeColor: AppColors.primary,
+                      onChanged: (val) {
+                        setState(() {
+                          if (val == true) {
+                            _selectedTagihanIds.add(bill.id);
+                          } else {
+                            _selectedTagihanIds.remove(bill.id);
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tagihan Bulan $periodeStr',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: AppColors.primary,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'No. Tagihan: #${bill.id}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                          const SizedBox(height: 2),
+                          Text(
+                            'No. Tagihan: #${bill.id}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     StatusBadge(status: bill.statusTagihan.dbValue),
                   ],
                 ),
               ),
 
-              // Receipt body — breakdown rows
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -1108,7 +1193,6 @@ class _BillsTab extends ConsumerWidget {
                       isDark: isDark,
                     ),
 
-                    // Penalty row — highlighted with warning color
                     if (bill.jumlahBulanTunggakan > 0) ...[
                       const SizedBox(height: 14),
                       Container(
@@ -1129,9 +1213,9 @@ class _BillsTab extends ConsumerWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  const Text(
                                     'Denda Tunggakan',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.error,
@@ -1150,10 +1234,9 @@ class _BillsTab extends ConsumerWidget {
                             Text(
                               formatter.format(bill.totalDenda),
                               style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.error,
-                              ),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.error),
                             ),
                           ],
                         ),
@@ -1169,7 +1252,6 @@ class _BillsTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Total Pembayaran — Large fintech-style amount ─────
                     Column(
                       children: [
                         Text(
@@ -1181,15 +1263,14 @@ class _BillsTab extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        // Hero total amount — large, bold, unmissable
                         Text(
                           formatter.format(totalBayar),
                           style: GoogleFonts.plusJakartaSans(
                             fontWeight: FontWeight.w800,
-                            fontSize: 36, // Large fintech-style total
+                            fontSize: 36,
                             color: bill.jumlahBulanTunggakan > 0
                                 ? AppColors.error
-                                : AppColors.textLightPrimary,
+                                : (isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary),
                             letterSpacing: -1.0,
                             height: 1.1,
                           ),
@@ -1277,21 +1358,6 @@ class _BillsTab extends ConsumerWidget {
                       ],
                     ),
                   ],
-                ),
-              ),
-
-              // Pay button at bottom of card
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: PrimaryButton(
-                  text: 'Bayar Sekarang',
-                  icon: Icons.payment_rounded,
-                  height: 56, // Extra generous touch target for CTA
-                  onPressed: () => _openPaymentSheet(
-                    context,
-                    ref,
-                    bill.copyWith(totalTagihan: totalBayar),
-                  ),
                 ),
               ),
             ],
@@ -1444,11 +1510,13 @@ class DashedDivider extends StatelessWidget {
 // SUB-WIDGET: Payment Gateway Bottom Sheet
 // ==========================================
 class _PaymentGatewaySheet extends ConsumerStatefulWidget {
-  final TagihanModel bill;
+  final List<TagihanModel> bills;
+  final double totalBayar;
   final String pelangganName;
 
   const _PaymentGatewaySheet({
-    required this.bill,
+    required this.bills,
+    required this.totalBayar,
     required this.pelangganName,
   });
 
@@ -1460,7 +1528,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  // ── Open Midtrans Snap WebView ─────────────────────────────────────────────
   Future<void> _launchMidtransPayment() async {
     setState(() {
       _isLoading = true;
@@ -1468,37 +1535,29 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
     });
 
     try {
-      // 1. Call the Edge Function to create a Midtrans transaction
       final midtransService = ref.read(midtransServiceProvider);
-      final result = await midtransService.createTransaction(
-        tagihanId: widget.bill.id,
-        jumlahBayar: widget.bill.totalTagihan,
+      final tagihanIds = widget.bills.map((b) => b.id).toList();
+      final result = await midtransService.createBulkTransaction(
+        tagihanIds: tagihanIds,
+        jumlahBayar: widget.totalBayar,
         pelangganName: widget.pelangganName,
       );
 
       if (!mounted) return;
 
-      // 2. Navigate to the WebView payment screen
       final paymentResult = await Navigator.of(context).push<dynamic>(
         MaterialPageRoute(
           builder: (_) => MidtransPaymentScreen(redirectUrl: result.redirectUrl),
         ),
       );
 
-      if (!mounted) return; 
-      // 3. Handle the result from the WebView.
-      //
-      // _popWithSnackbar (example.com intercept) returns `true` (bool).
-      // _popWithResult   (/finish fallback)       returns MidtransPaymentResult.
-      // Both "submitted" cases close the sheet; the parent's .then() refreshes data.
+      if (!mounted) return;
       final submitted = paymentResult == true ||
           paymentResult == MidtransPaymentResult.success;
 
       if (submitted) {
         if (!mounted) return;
         Navigator.of(context).pop(true);
-        // Snackbar was already shown by _popWithSnackbar inside the WebView screen.
-        // Provider invalidation happens in _openPaymentSheet's .then() callback.
       } else {
         String message;
         if (paymentResult == MidtransPaymentResult.cancelled) {
@@ -1546,7 +1605,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Drag handle ────────────────────────────────────────────────
           Center(
             child: Container(
               width: 40,
@@ -1559,7 +1617,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
             ),
           ),
 
-          // ── Header ─────────────────────────────────────────────────────
           Row(
             children: [
               Container(
@@ -1585,7 +1642,7 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
                     ),
                   ),
                   const Text(
-                    'Tagihan air bulan ini',
+                    'Tagihan air SP3A',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
@@ -1594,7 +1651,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
           ),
           const SizedBox(height: 28),
 
-          // ── Total amount ───────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
             decoration: BoxDecoration(
@@ -1621,7 +1677,7 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  formatter.format(widget.bill.totalTagihan),
+                  formatter.format(widget.totalBayar),
                   style: GoogleFonts.plusJakartaSans(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w800,
@@ -1631,7 +1687,9 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'No. Tagihan: #${widget.bill.id}',
+                  widget.bills.length == 1
+                      ? 'No. Tagihan: #${widget.bills[0].id}'
+                      : '${widget.bills.length} Tagihan Terpilih',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
@@ -1639,7 +1697,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
           ),
           const SizedBox(height: 20),
 
-          // ── Payment method info ────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -1672,7 +1729,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
           ),
           const SizedBox(height: 12),
 
-          // ── Error message ──────────────────────────────────────────────
           if (_errorMessage != null) ...[
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -1707,7 +1763,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
             const SizedBox(height: 12),
           ],
 
-          // ── CTA button ─────────────────────────────────────────────────
           PrimaryButton(
             text: 'Lanjut ke Pembayaran',
             icon: Icons.arrow_forward_rounded,
@@ -1716,7 +1771,6 @@ class _PaymentGatewaySheetState extends ConsumerState<_PaymentGatewaySheet> {
             onPressed: _isLoading ? null : _launchMidtransPayment,
           ),
           const SizedBox(height: 8),
-          // Security note
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

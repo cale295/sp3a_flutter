@@ -128,7 +128,7 @@ class _AuthGate extends ConsumerWidget {
     // 4. Role-based Navigation
     switch (user.role) {
       case UserRole.admin:
-        return const AdminDashboard();
+        return const AdminDashboardMain();
       case UserRole.petugas:
         return const PetugasDashboard();
       case UserRole.pelanggan:

@@ -10,6 +10,7 @@ import '../../providers/tagihan_provider.dart';
 import '../../providers/pencatatan_provider.dart';
 import 'widgets/input_meteran_dialog_content.dart';
 import 'pelanggan_detail_screen.dart';
+import '../../core/widgets/logout_confirmation_dialog.dart';
 
 class PetugasDashboard extends ConsumerStatefulWidget {
   const PetugasDashboard({super.key});
@@ -72,7 +73,10 @@ class _PetugasDashboardState extends ConsumerState<PetugasDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-            onPressed: () => ref.read(authProvider.notifier).signOut(),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (context) => const LogoutConfirmationDialog(),
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -137,6 +141,7 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedCategory = 'Semua';
+  String _recordingFilter = 'Semua Pelanggan';
 
   @override
   void dispose() {
@@ -205,6 +210,45 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
           ),
           const SizedBox(height: 12),
 
+          // Dropdown for Recording Status Filter
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.inputBgDark : AppColors.inputBgLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _recordingFilter,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+                dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Semua Pelanggan',
+                    child: Text('Semua Pelanggan', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Belum Dicatat',
+                    child: Text('Belum Dicatat', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Sudah Dicatat',
+                    child: Text('Sudah Dicatat', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _recordingFilter = val;
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           // Horizontal Category Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -238,7 +282,11 @@ class _PelangganListTabState extends ConsumerState<_PelangganListTab> {
                       (_selectedCategory == 'Rumah Tangga' && user.tipePelanggan == TipePelanggan.rumahTangga) ||
                       (_selectedCategory == 'Bisnis' && user.tipePelanggan == TipePelanggan.bisnis);
 
-                  return matchesSearch && matchesCategory;
+                  final matchesRecording = _recordingFilter == 'Semua Pelanggan' ||
+                      (_recordingFilter == 'Belum Dicatat' && !item.hasPetugasReading) ||
+                      (_recordingFilter == 'Sudah Dicatat' && item.hasPetugasReading);
+
+                  return matchesSearch && matchesCategory && matchesRecording;
                 }).toList();
 
                 if (filtered.isEmpty) {
@@ -475,6 +523,7 @@ class _PaymentStatusTab extends ConsumerStatefulWidget {
 class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String _paymentFilter = 'Semua Status';
 
   @override
   void dispose() {
@@ -530,7 +579,47 @@ class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
               });
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+
+          // Dropdown for Payment Status Filter
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.inputBgDark : AppColors.inputBgLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _paymentFilter,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary),
+                dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Semua Status',
+                    child: Text('Semua Status', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Lunas Semua',
+                    child: Text('Lunas Semua', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Ada Tunggakan',
+                    child: Text('Ada Tunggakan', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _paymentFilter = val;
+                    });
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
           Text(
             'Status Pembayaran Pelanggan',
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -547,8 +636,22 @@ class _PaymentStatusTabState extends ConsumerState<_PaymentStatusTab> {
                 return billsAsync.when(
                   data: (billsList) {
                     final filtered = pelangganList.where((user) {
-                      return user.namaLengkap.toLowerCase().contains(_searchQuery) ||
+                      final matchesSearch = user.namaLengkap.toLowerCase().contains(_searchQuery) ||
                           user.alamat.toLowerCase().contains(_searchQuery);
+
+                      if (!matchesSearch) return false;
+
+                      // Check if they have ANY bills where status_tagihan is 'belum_dibayar' or 'belum_bayar'
+                      final customerBills = billsList.where((b) => b.pelangganId == user.id).toList();
+                      final hasUnpaid = customerBills.any((b) => b.statusTagihan.dbValue == 'belum_dibayar' || b.statusTagihan.dbValue == 'belum_bayar');
+
+                      if (_paymentFilter == 'Lunas Semua') {
+                        return !hasUnpaid;
+                      } else if (_paymentFilter == 'Ada Tunggakan') {
+                        return hasUnpaid;
+                      }
+
+                      return true; // 'Semua Status'
                     }).toList();
 
                     if (filtered.isEmpty) {

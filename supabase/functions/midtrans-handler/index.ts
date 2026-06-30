@@ -62,17 +62,25 @@ function createAdminClient() {
 async function handleCreateTransaction(
   body: Record<string, unknown>
 ): Promise<Response> {
-  const { tagihan_id, jumlah_bayar, pelanggan_name } = body;
+  const { tagihan_id, tagihan_ids, jumlah_bayar, pelanggan_name } = body;
+
+  // Resolve array of tagihan IDs
+  let resolvedTagihanIds: number[] = [];
+  if (Array.isArray(tagihan_ids)) {
+    resolvedTagihanIds = tagihan_ids.map(Number);
+  } else if (tagihan_id) {
+    resolvedTagihanIds = [Number(tagihan_id)];
+  }
 
   console.log(
     `[create-transaction] ▶ Received request — ` +
-    `tagihan_id=${tagihan_id}, jumlah_bayar=${jumlah_bayar}, pelanggan_name=${pelanggan_name}`
+    `tagihan_ids=${JSON.stringify(resolvedTagihanIds)}, jumlah_bayar=${jumlah_bayar}, pelanggan_name=${pelanggan_name}`
   );
 
   // ── Validate inputs ────────────────────────────────────────────────────────
-  if (!tagihan_id || !jumlah_bayar || !pelanggan_name) {
+  if (resolvedTagihanIds.length === 0 || !jumlah_bayar || !pelanggan_name) {
     return errorResponse(
-      "Missing required fields: tagihan_id, jumlah_bayar, pelanggan_name"
+      "Missing required fields: tagihan_ids/tagihan_id, jumlah_bayar, pelanggan_name"
     );
   }
   if (typeof jumlah_bayar !== "number" || jumlah_bayar <= 0) {
@@ -82,15 +90,14 @@ async function handleCreateTransaction(
     return errorResponse("MIDTRANS_SERVER_KEY is not configured on the server", 500);
   }
 
-  // ── FIX 1: Append timestamp to order_id ───────────────────────────────────
-  // Midtrans rejects any order_id that was used before (even cancelled payments).
-  // By appending Date.now(), every attempt gets a unique ID.
-  // Format: "42-1719559200000"  (tagihan_id + dash + unix ms timestamp)
-  const orderId = `${tagihan_id}-${Date.now()}`;
+  // Generate unique order ID. For bulk checkout, prefix with BULK
+  const orderId = resolvedTagihanIds.length > 1
+    ? `BULK-${Date.now()}`
+    : `${resolvedTagihanIds[0]}-${Date.now()}`;
 
   console.log(
     `[create-transaction] ✔ Generated unique order_id="${orderId}" ` +
-    `(tagihan_id=${tagihan_id})`
+    `for tagihan_ids=${JSON.stringify(resolvedTagihanIds)}`
   );
 
   // ── Build Midtrans Snap payload ────────────────────────────────────────────
@@ -103,6 +110,8 @@ async function handleCreateTransaction(
     customer_details: {
       first_name: String(pelanggan_name),
     },
+    // Stringify array of tagihan IDs into custom_field1
+    custom_field1: JSON.stringify(resolvedTagihanIds),
     // Restrict payment methods to QRIS and Bank Transfer ONLY
     enabled_payments: ["other_qris", "bank_transfer"],
   };
@@ -113,7 +122,6 @@ async function handleCreateTransaction(
   );
 
   // ── Call Midtrans ──────────────────────────────────────────────────────────
-  // Basic Auth: Base64(ServerKey + ":")
   const authToken = btoa(`${MIDTRANS_SERVER_KEY}:`);
 
   let midtransResponse: Response;
@@ -246,143 +254,122 @@ async function handleWebhook(
     return jsonResponse({ message: "Notification received. No action taken." });
   }
 
-  // ── Step 5: Clean and Extract tagihan_id ───────────────────────────────────
-  // order_id is formatted as: "${tagihan_id}-${timestamp}" (e.g., "42-1719559200000" or "TG-001-1687001234").
-  // We locate the last dash to remove only the appended timestamp.
-  const orderIdStr = String(order_id);
-  const lastDashIndex = orderIdStr.lastIndexOf("-");
-  const cleanTagihanIdStr = lastDashIndex !== -1 ? orderIdStr.substring(0, lastDashIndex) : orderIdStr;
+  // ── Step 5: Clean and Extract tagihan_ids ───────────────────────────────────
+  // We check custom_field1 first for stringified tagihan_ids.
+  // Fallback to parsing order_id if custom_field1 is missing.
+  let tagihanIdsToUpdate: number[] = [];
 
-  console.log(
-    `[webhook] ▶ Parsing order_id="${orderIdStr}": ` +
-    `lastDashIndex=${lastDashIndex}, cleanTagihanIdStr="${cleanTagihanIdStr}"`
-  );
-
-  const cleanTagihanId = isNaN(Number(cleanTagihanIdStr))
-    ? cleanTagihanIdStr
-    : parseInt(cleanTagihanIdStr, 10);
-
-  if (!cleanTagihanIdStr || (typeof cleanTagihanId === "number" && cleanTagihanId <= 0)) {
-    console.error(
-      `[webhook] ✖ FAILED to parse a valid tagihan_id from order_id="${orderIdStr}". ` +
-      `Parsed value="${cleanTagihanIdStr}"`
-    );
-    return errorResponse(
-      `Cannot extract valid tagihan_id from order_id="${orderIdStr}"`,
-      400
-    );
+  if (body.custom_field1) {
+    try {
+      const parsed = JSON.parse(body.custom_field1 as string);
+      if (Array.isArray(parsed)) {
+        tagihanIdsToUpdate = parsed.map(Number);
+      } else if (!isNaN(Number(parsed))) {
+        tagihanIdsToUpdate = [Number(parsed)];
+      }
+    } catch (parseError) {
+      console.warn("[webhook] Failed to parse custom_field1:", parseError);
+    }
   }
 
-  console.log(`[webhook] ✔ Extracted cleanTagihanId=${cleanTagihanId} from order_id="${orderIdStr}"`);
+  const orderIdStr = String(order_id);
+  if (tagihanIdsToUpdate.length === 0) {
+    const lastDashIndex = orderIdStr.lastIndexOf("-");
+    const cleanTagihanIdStr = lastDashIndex !== -1 ? orderIdStr.substring(0, lastDashIndex) : orderIdStr;
+    const fallbackId = Number(cleanTagihanIdStr);
+    if (!isNaN(fallbackId) && fallbackId > 0) {
+      tagihanIdsToUpdate = [fallbackId];
+    }
+  }
+
+  if (tagihanIdsToUpdate.length === 0) {
+    console.error(`[webhook] ✖ FAILED to parse any tagihan_ids from order_id="${orderIdStr}" or custom_field1`);
+    return errorResponse(`Cannot extract valid tagihan_ids from webhook payload`, 400);
+  }
+
+  console.log(`[webhook] ✔ Resolved tagihanIds to update: ${JSON.stringify(tagihanIdsToUpdate)}`);
 
   // ── Step 6: Create Supabase admin client with Service Role Key ─────────────
-  // The Service Role Key bypasses Row Level Security (RLS) policies.
   let supabase;
   try {
     supabase = createAdminClient();
-    console.log(
-      `[webhook] ✔ Supabase admin client created successfully ` +
-      `(URL="${SUPABASE_URL}", using Service Role Key).`
-    );
+    console.log(`[webhook] ✔ Supabase admin client created successfully.`);
   } catch (clientError) {
     console.error("[webhook] ✖ Failed to create Supabase client:", clientError);
     return errorResponse(String(clientError), 500);
   }
 
-  // ── Step 7: Update the tagihan record ─────────────────────────────────────
-  console.log(
-    `[webhook] ▶ Attempting to update tagihan where id=${cleanTagihanId} ` +
-    `→ SET status_tagihan='lunas' ...`
-  );
+  // ── Step 7: Update each tagihan and insert pembayaran record ───────────────
+  const dbErrors: string[] = [];
+  const processedIds: number[] = [];
 
-  const { data: updateData, error: updateError, count } = await supabase
-    .from("tagihan")
-    .update({ status_tagihan: "lunas" })
-    .eq("id", cleanTagihanId)
-    .select();
+  for (const tid of tagihanIdsToUpdate) {
+    console.log(`[webhook] ▶ Processing tagihan_id=${tid}...`);
 
-  // ── Step 8: Log the full DB result for debugging ──────────────────────────
-  console.log("[webhook] ▶ Supabase update result:");
-  console.log(`  → error  : ${updateError ? JSON.stringify(updateError) : "null (no error)"}`);
-  console.log(`  → data   : ${JSON.stringify(updateData)}`);
-  console.log(`  → count  : ${count}`);
+    const { data: updateData, error: updateError } = await supabase
+      .from("tagihan")
+      .update({ status_tagihan: "lunas" })
+      .eq("id", tid)
+      .select();
 
-  if (updateError) {
-    console.error(
-      `[webhook] ✖ DATABASE UPDATE FAILED for tagihan id=${cleanTagihanId}. ` +
-      `Error code="${updateError.code}", message="${updateError.message}", ` +
-      `details="${updateError.details}", hint="${updateError.hint}"`
-    );
-    return errorResponse(`DB update failed: ${updateError.message}`, 500);
+    if (updateError) {
+      console.error(`[webhook] ✖ DATABASE UPDATE FAILED for tagihan id=${tid}:`, updateError);
+      dbErrors.push(`update tagihan ${tid} failed: ${updateError.message}`);
+      continue;
+    }
+
+    if (!updateData || updateData.length === 0) {
+      console.error(`[webhook] ✖ NO ROWS UPDATED for tagihan id=${tid}`);
+      dbErrors.push(`tagihan ${tid} not found`);
+      continue;
+    }
+
+    processedIds.push(tid);
+    console.log(`[webhook] ✔ Updated status_tagihan='lunas' for tagihan id=${tid}`);
+
+    // Generate custom pembayaran ID
+    const random3Digits = Math.floor(100 + Math.random() * 900);
+    const customPembayaranId = `SP3A-${tid}-${random3Digits}`;
+
+    const billRecord = updateData[0];
+    const billTotalAmount = (billRecord.total_tagihan as number) + (billRecord.total_denda as number);
+
+    const paymentType = (body.payment_type as string) || "other";
+    const waktuBayar = (body.transaction_time as string) || new Date().toISOString();
+
+    const pembayaranPayload = {
+      id: customPembayaranId,
+      tagihan_id: tid,
+      jumlah_bayar: billTotalAmount,
+      metode_pembayaran: paymentType,
+      status_pembayaran: "sukses",
+      waktu_bayar: waktuBayar,
+    };
+
+    console.log(`[webhook] ▶ Inserting pembayaran for tagihan id=${tid}: custom_id="${customPembayaranId}"`);
+
+    const { error: pembayaranError } = await supabase
+      .from("pembayaran")
+      .insert(pembayaranPayload);
+
+    if (pembayaranError) {
+      console.error(`[webhook] ✖ DATABASE INSERT PEMBAYARAN FAILED for tagihan id=${tid}:`, pembayaranError);
+      dbErrors.push(`pembayaran insert for tagihan ${tid} failed: ${pembayaranError.message}`);
+    } else {
+      console.log(`[webhook] ✔ Inserted pembayaran record for tagihan id=${tid}`);
+    }
   }
 
-  if (!updateData || updateData.length === 0) {
-    console.error(
-      `[webhook] ✖ NO ROWS UPDATED — tagihan with id=${cleanTagihanId} was not found ` +
-      `in the database. Check that the tagihan_id is correct and the record exists.`
-    );
-    return errorResponse(
-      `No tagihan record found with id=${cleanTagihanId}`,
-      404
-    );
+  if (dbErrors.length > 0 && processedIds.length === 0) {
+    return errorResponse(`Database operations failed: ${dbErrors.join("; ")}`, 500);
   }
 
-  console.log(
-    `[webhook] ✔✔ SUCCESS — tagihan id=${cleanTagihanId} updated to status_tagihan='lunas'. ` +
-    `Updated row: ${JSON.stringify(updateData[0])}`
-  );
-
-  // ── Step 9: Insert record into pembayaran table ───────────────────────────
-  // Generate a custom pembayaran ID: SP3A-[Clean_Tagihan_ID]-[Random_3_Digits]
-  const random3Digits = Math.floor(100 + Math.random() * 900);
-  const customPembayaranId = `SP3A-${cleanTagihanIdStr}-${random3Digits}`;
-
-  const grossAmountVal = typeof gross_amount === "number"
-    ? gross_amount
-    : parseFloat(String(gross_amount || 0));
-  const paymentType = (body.payment_type as string) || "other";
-  const waktuBayar = (body.transaction_time as string) || new Date().toISOString();
-
-  const pembayaranPayload = {
-    id: customPembayaranId,
-    tagihan_id: cleanTagihanId,
-    jumlah_bayar: grossAmountVal,
-    metode_pembayaran: paymentType,
-    status_pembayaran: "sukses",
-    waktu_bayar: waktuBayar,
-  };
-
-  console.log('Cleaned Tagihan ID:', cleanTagihanId);
-  console.log(
-    `[webhook] ▶ Attempting to insert pembayaran record with custom id="${customPembayaranId}":`,
-    JSON.stringify(pembayaranPayload, null, 2)
-  );
-
-  const { data: pembayaranData, error: pembayaranError } = await supabase
-    .from("pembayaran")
-    .insert(pembayaranPayload)
-    .select();
-
-  console.log("[webhook] ▶ Supabase insert pembayaran result:");
-  console.log(`  → error  : ${pembayaranError ? JSON.stringify(pembayaranError) : "null (no error)"}`);
-  console.log(`  → data   : ${JSON.stringify(pembayaranData)}`);
-
-  if (pembayaranError) {
-    console.error(
-      `[webhook] ✖ DATABASE INSERT PEMBAYARAN FAILED for tagihan id=${cleanTagihanId}. ` +
-      `Error code="${pembayaranError.code}", message="${pembayaranError.message}", ` +
-      `details="${pembayaranError.details}", hint="${pembayaranError.hint}"`
-    );
-    return errorResponse(`DB insert pembayaran failed: ${pembayaranError.message}`, 500);
-  }
-
-  console.log(`[webhook] ✔✔ SUCCESS — pembayaran record inserted successfully.`);
+  console.log(`[webhook] ✔✔ Webhook processing completed. Processed: ${JSON.stringify(processedIds)}, Errors: ${JSON.stringify(dbErrors)}`);
 
   return jsonResponse({
-    message: `Payment confirmed. Tagihan id=${cleanTagihanId} updated to lunas, and pembayaran logged.`,
-    tagihan_id: cleanTagihanId,
-    order_id: orderIdStr,
-    pembayaran_id: customPembayaranId,
+    message: `Payment confirmed. Processed tagihan_ids: ${processedIds.join(", ")}.`,
+    processed_ids: processedIds,
+    errors: dbErrors.length > 0 ? dbErrors : undefined,
   });
 }
 

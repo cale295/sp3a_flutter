@@ -193,3 +193,22 @@ final tagihanWithPencatatanProvider = FutureProvider.family.autoDispose<List<Tag
       .order('id', ascending: false);
   return (response as List).map((json) => TagihanWithPencatatan.fromJson(json)).toList();
 });
+
+final unpaidTagihanProvider = FutureProvider.family.autoDispose<List<TagihanWithPencatatan>, String>((ref, pelangganId) async {
+  final response = await Supabase.instance.client
+      .from('tagihan')
+      .select('*, pencatatan_meteran!inner(*)')
+      .eq('pelanggan_id', pelangganId)
+      .eq('status_tagihan', 'belum_dibayar');
+  
+  final list = (response as List).map((json) => TagihanWithPencatatan.fromJson(json)).toList();
+  
+  // Sort chronologically descending
+  list.sort((a, b) {
+    if (a.periodeTahun != b.periodeTahun) {
+      return b.periodeTahun.compareTo(a.periodeTahun);
+    }
+    return b.periodeBulan.compareTo(a.periodeBulan);
+  });
+  return list;
+});
