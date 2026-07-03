@@ -1122,231 +1122,212 @@ class _LaporanViewState extends ConsumerState<_LaporanView> {
       }
     }
 
+    final bgColor = isDark ? AppColors.cardDark : Colors.white;
+    final subTextColor = isDark ? AppColors.textDarkSecondary : Colors.grey[500]!;
+    final dividerColor = isDark ? Colors.grey[800]! : Colors.grey.shade200;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Laporan Pembayaran Air', style: theme.textTheme.titleLarge?.copyWith(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-        const SizedBox(height: 4),
-        Text('Analisis konsumsi pemakaian air bulanan dan rekapitulasi pembayaran.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary, fontSize: 13)),
-        const SizedBox(height: 20),
+        // --- Header ---
+        Text('Laporan Pembayaran', style: theme.textTheme.titleLarge?.copyWith(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+        const SizedBox(height: 10),
 
+        // --- Compact Summary Strip ---
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: dividerColor),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Pendapatan', style: TextStyle(fontSize: 10, color: subTextColor, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(formatter.format(totalIncome), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 28, color: dividerColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Transaksi', style: TextStyle(fontSize: 10, color: subTextColor, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text('$totalTx lunas', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary)),
+                    ],
+                  ),
+                ),
+              ),
+              Container(width: 1, height: 28, color: dividerColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Rata-rata', style: TextStyle(fontSize: 10, color: subTextColor, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(formatter.format(totalTx > 0 ? totalIncome / totalTx : 0), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.warning)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // --- Filter Chips ---
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _buildFilterChip(label: 'Semua Tipe', value: 'Semua', isDark: isDark),
-              const SizedBox(width: 10),
+              _buildFilterChip(label: 'Semua', value: 'Semua', isDark: isDark),
+              const SizedBox(width: 8),
               _buildFilterChip(label: 'Rumah Tangga', value: 'rumah_tangga', isDark: isDark),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               _buildFilterChip(label: 'Bisnis', value: 'bisnis', isDark: isDark),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 10),
 
-        if (_isLoading) ...[
-          const Expanded(child: Center(child: CircularProgressIndicator())),
-        ] else if (_errorMessage != null) ...[
-          Expanded(child: Center(child: Text('Gagal memuat laporan: $_errorMessage', style: const TextStyle(color: AppColors.error)))),
-        ] else ...[
-          Row(
-            children: [
-              Expanded(
-                child: CustomCard(
-                  color: AppColors.primary.withAlpha(10),
-                  hasBorder: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Pendapatan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary)),
-                      const SizedBox(height: 12),
-                      Text(formatter.format(totalIncome), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                      const SizedBox(height: 4),
-                      Text('Dari $totalTx transaksi lunas', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: CustomCard(
-                  color: AppColors.secondary.withAlpha(10),
-                  hasBorder: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Transaksi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.secondary)),
-                      const SizedBox(height: 12),
-                      Text('$totalTx Lunas', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                      const SizedBox(height: 4),
-                      Text('Jumlah pembayaran berhasil', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: CustomCard(
-                  color: AppColors.warning.withAlpha(10),
-                  hasBorder: true,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Rata-rata Pembayaran', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.warning)),
-                      const SizedBox(height: 12),
-                      Text(formatter.format(totalTx > 0 ? totalIncome / totalTx : 0), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-                      const SizedBox(height: 4),
-                      Text('Nilai rata-rata tagihan lunas', style: TextStyle(fontSize: 11, color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 36),
-          Text('Rincian Pembayaran Pelanggan', style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
+        // --- List Label ---
+        Row(
+          children: [
+            Text('Rincian Pembayaran', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: subTextColor, letterSpacing: 0.5)),
+            const SizedBox(width: 6),
+            Text('(${_reports.length} transaksi)', style: TextStyle(fontSize: 11, color: subTextColor)),
+          ],
+        ),
+        const SizedBox(height: 6),
+
+        // --- High-Density List ---
+        if (_isLoading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_errorMessage != null)
+          Expanded(child: Center(child: Text('Gagal memuat laporan: $_errorMessage', style: const TextStyle(color: AppColors.error, fontSize: 13))))
+        else if (_reports.isEmpty)
           Expanded(
-            child: _reports.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.receipt_long_rounded, color: isDark ? Colors.grey[700] : Colors.grey[300], size: 48),
-                        const SizedBox(height: 12),
-                        Text('Tidak ada rincian pembayaran ditemukan.', style: TextStyle(color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary)),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _reports.length,
-                    itemBuilder: (context, index) {
-                      final r = _reports[index];
-                      final dateStr = r.waktuBayar != null
-                          ? DateFormat('dd MMM yyyy, HH:mm').format(r.waktuBayar!)
-                          : '-';
-                      final isBisnis = r.tipePelanggan.toLowerCase() == 'bisnis';
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.receipt_long_rounded, color: isDark ? Colors.grey[700] : Colors.grey[300], size: 40),
+                  const SizedBox(height: 8),
+                  Text('Tidak ada data pembayaran.', style: TextStyle(fontSize: 13, color: subTextColor)),
+                ],
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: dividerColor),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: _reports.length,
+                  separatorBuilder: (_, __) => Divider(height: 1, thickness: 0.5, color: dividerColor),
+                  itemBuilder: (context, index) {
+                    final r = _reports[index];
+                    final dateStr = r.waktuBayar != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(r.waktuBayar!)
+                        : '-';
+                    final isBisnis = r.tipePelanggan.toLowerCase() == 'bisnis';
+                    final indicatorColor = isBisnis ? Colors.orange[600]! : Colors.blue[500]!;
+                    final monthName = DateFormat('MMM').format(DateTime(r.periodeTahun, r.periodeBulan));
 
-                      return Card(
-                        color: isDark ? AppColors.cardDark : Colors.white,
-                        surfaceTintColor: isDark ? AppColors.cardDark : Colors.white,
-                        elevation: 0,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: isDark ? AppColors.borderDark : Colors.grey.withAlpha(25),
-                          ),
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isDark ? AppColors.cardDark : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(10),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: isBisnis
-                                      ? Colors.orange.withAlpha(20)
-                                      : Colors.blue.withAlpha(20),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  isBisnis
-                                      ? Icons.business_rounded
-                                      : Icons.home_rounded,
-                                  color: isBisnis ? Colors.orange : Colors.blue,
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
+                    return SizedBox(
+                      height: 56,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Colored left indicator bar
+                          Container(width: 4, color: indicatorColor),
+                          // Main content
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                children: [
+                                  // Name + Date column
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Expanded(
-                                          child: Text(
-                                            r.namaPelanggan.isNotEmpty ? r.namaPelanggan : '-',
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 15,
-                                              color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
-                                            ),
+                                        Text(
+                                          r.namaPelanggan.isNotEmpty ? r.namaPelanggan : '-',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? AppColors.textDarkPrimary : AppColors.textLightPrimary,
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: isBisnis
-                                                ? Colors.orange.withAlpha(25)
-                                                : Colors.blue.withAlpha(25),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            isBisnis ? 'Bisnis' : 'Rumah Tangga',
-                                            style: TextStyle(
-                                              color: isBisnis ? Colors.orange[800] : Colors.blue[800],
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          dateStr,
+                                          style: TextStyle(fontSize: 11, color: subTextColor),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Waktu Bayar: $dateStr',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDark ? AppColors.textDarkSecondary : AppColors.textLightSecondary,
+                                  ),
+                                  // Amount + Period column
+                                  Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        formatter.format(r.jumlahBayar),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.green[300] : Colors.green[700],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Metode: ${r.metodePembayaran.toUpperCase()} • Periode: Bulan ${r.periodeBulan} - ${r.periodeTahun}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isDark ? AppColors.textDarkSecondary.withAlpha(180) : AppColors.textLightSecondary.withAlpha(180),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Tagihan $monthName ${r.periodeTahun}',
+                                        style: TextStyle(fontSize: 11, color: subTextColor),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 16),
-                              Text(
-                                formatter.format(r.jumlahBayar),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: isBisnis ? Colors.orange[700] : const Color(0xFF0EA5E9),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
-        ],
       ],
     );
   }
 }
+
 
 class _StatistikView extends ConsumerStatefulWidget {
   const _StatistikView();

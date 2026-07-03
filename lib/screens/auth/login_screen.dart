@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/input_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../providers/auth_provider.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -25,26 +26,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _launchWhatsApp() async {
-    const phone = '6281219939081'; // Default admin WhatsApp phone number
-    const message = 'Halo Admin SP3A, saya lupa password akun saya. Mohon bantuan untuk reset password.';
-    final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
-    
-    try {
-      final success = await launchUrl(url, mode: LaunchMode.externalApplication);
-      if (!success) {
-        throw Exception('Could not launch WA url');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal membuka WhatsApp. Silakan hubungi admin secara manual.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+  void _navigateToForgotPassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
   }
 
   void _submit() {
@@ -184,7 +170,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: _launchWhatsApp,
+                      onPressed: _navigateToForgotPassword,
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
                         minimumSize: const Size(0, 0),

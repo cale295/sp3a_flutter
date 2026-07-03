@@ -16,6 +16,9 @@ import './screens/petugas/petugas_dashboard.dart';
 import 'package:sp3a_projek/screens/pelanggan/pelanggan_dashboard.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:sp3a_projek/screens/auth/new_password_screen.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,7 +75,7 @@ void main() async {
   );
 }
 
-class SP3AApp extends ConsumerWidget {
+class SP3AApp extends ConsumerStatefulWidget {
   final bool isInitialized;
   final String? initializationError;
 
@@ -83,15 +86,39 @@ class SP3AApp extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SP3AApp> createState() => _SP3AAppState();
+}
+
+class _SP3AAppState extends ConsumerState<SP3AApp> {
+  @override
+  void initState() {
+    super.initState();
+    _setupAuthListener();
+  }
+
+  void _setupAuthListener() {
+    if (!widget.isInitialized) return;
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      if (event == AuthChangeEvent.passwordRecovery) {
+        navigatorKey.currentState?.pushReplacement(
+          MaterialPageRoute(builder: (context) => const NewPasswordScreen()),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'SP3A - Sistem Pembayaran Air',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: !isInitialized
-          ? _UnconfiguredFallbackScreen(errorMessage: initializationError)
+      home: !widget.isInitialized
+          ? _UnconfiguredFallbackScreen(errorMessage: widget.initializationError)
           : const _AuthGate(),
     );
   }
