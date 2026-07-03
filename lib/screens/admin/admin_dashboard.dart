@@ -17,6 +17,7 @@ import '../../providers/statistics_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/laporan_pembayaran_model.dart';
+import '../../services/pdf_report_service.dart';
 
 class AdminDashboardMain extends ConsumerStatefulWidget {
   const AdminDashboardMain({super.key});
@@ -915,81 +916,95 @@ class _ManageTarifViewState extends ConsumerState<_ManageTarifView> {
                 constraints: const BoxConstraints(maxWidth: 800),
                 child: Column(
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Rumah Tangga Card
-                        Expanded(
-                          child: CustomCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.home_rounded, color: AppColors.primary, size: 24),
-                                    const SizedBox(width: 12),
-                                    Text('Rumah Tangga', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                                const SizedBox(height: 24),
-                                InputField(
-                                  label: 'Harga per m³ (IDR)',
-                                  controller: _rtM3Controller,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                ),
-                                const SizedBox(height: 16),
-                                InputField(
-                                  label: 'Biaya Abodemen (IDR)',
-                                  controller: _rtAbodemenController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                ),
-                                const SizedBox(height: 16),
-                                InputField(
-                                  label: 'Denda Keterlambatan / Bulan (IDR)',
-                                  controller: _rtDendaController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                ),
-                              ],
-                            ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isDesktop = constraints.maxWidth > 650;
+                        
+                        final rtCard = CustomCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.home_rounded, color: AppColors.primary, size: 24),
+                                  const SizedBox(width: 12),
+                                  Text('Rumah Tangga', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              InputField(
+                                label: 'Harga per m³ (IDR)',
+                                controller: _rtM3Controller,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                              const SizedBox(height: 16),
+                              InputField(
+                                label: 'Biaya Abodemen (IDR)',
+                                controller: _rtAbodemenController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                              const SizedBox(height: 16),
+                              InputField(
+                                label: 'Denda Keterlambatan / Bulan (IDR)',
+                                controller: _rtDendaController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 24),
-                        // Bisnis Card
-                        Expanded(
-                          child: CustomCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.business_rounded, color: AppColors.secondary, size: 24),
-                                    const SizedBox(width: 12),
-                                    Text('Bisnis / Komersial', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                                const SizedBox(height: 24),
-                                InputField(
-                                  label: 'Harga per m³ (IDR)',
-                                  controller: _bisnisM3Controller,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                ),
-                                const SizedBox(height: 16),
-                                InputField(
-                                  label: 'Biaya Abodemen (IDR)',
-                                  controller: _bisnisAbodemenController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                ),
-                                const SizedBox(height: 16),
-                                InputField(
-                                  label: 'Denda Keterlambatan / Bulan (IDR)',
-                                  controller: _bisnisDendaController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                ),
-                              ],
-                            ),
+                        );
+
+                        final bisnisCard = CustomCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.business_rounded, color: AppColors.secondary, size: 24),
+                                  const SizedBox(width: 12),
+                                  Text('Bisnis / Komersial', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              InputField(
+                                label: 'Harga per m³ (IDR)',
+                                controller: _bisnisM3Controller,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                              const SizedBox(height: 16),
+                              InputField(
+                                label: 'Biaya Abodemen (IDR)',
+                                controller: _bisnisAbodemenController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                              const SizedBox(height: 16),
+                              InputField(
+                                label: 'Denda Keterlambatan / Bulan (IDR)',
+                                controller: _bisnisDendaController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
+                        );
+
+                        if (isDesktop) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: rtCard),
+                              const SizedBox(width: 24),
+                              Expanded(child: bisnisCard),
+                            ],
+                          );
+                        } else {
+                          return Column(
+                            children: [
+                              rtCard,
+                              const SizedBox(height: 24),
+                              bisnisCard,
+                            ],
+                          );
+                        }
+                      },
                     ),
                     const SizedBox(height: 32),
                     Align(
@@ -1019,13 +1034,23 @@ class _LaporanView extends ConsumerStatefulWidget {
 
 class _LaporanViewState extends ConsumerState<_LaporanView> {
   String _selectedFilter = 'Semua';
+  int? _selectedYear;
+  List<int> _availableYears = [];
   List<LaporanPembayaran> _reports = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isDownloading = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedYear = DateTime.now().year;
+    _availableYears = [
+      DateTime.now().year,
+      DateTime.now().year - 1,
+      DateTime.now().year - 2,
+      DateTime.now().year - 3,
+    ];
     _fetchLaporan();
   }
 
@@ -1041,6 +1066,10 @@ class _LaporanViewState extends ConsumerState<_LaporanView> {
 
       if (_selectedFilter != 'Semua') {
         query = query.eq('tipe_pelanggan', _selectedFilter);
+      }
+
+      if (_selectedYear != null) {
+        query = query.eq('periode_tahun', _selectedYear!);
       }
 
       final response = await query.order('waktu_bayar', ascending: false);
@@ -1061,6 +1090,25 @@ class _LaporanViewState extends ConsumerState<_LaporanView> {
           _isLoading = false;
           _errorMessage = e.toString();
         });
+      }
+    }
+  }
+
+  Future<void> _downloadPdf() async {
+    if (_reports.isEmpty || _selectedYear == null) return;
+    setState(() => _isDownloading = true);
+    try {
+      await PdfReportService.generateAndDownloadYearlyReport(_reports, _selectedYear!);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Gagal membuat PDF: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDownloading = false);
       }
     }
   }
@@ -1130,7 +1178,27 @@ class _LaporanViewState extends ConsumerState<_LaporanView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // --- Header ---
-        Text('Laporan Pembayaran', style: theme.textTheme.titleLarge?.copyWith(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text('Laporan Pembayaran', style: theme.textTheme.titleLarge?.copyWith(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+            DropdownButton<int>(
+              value: _selectedYear,
+              icon: const Icon(Icons.arrow_drop_down, size: 20),
+              underline: const SizedBox(),
+              style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w600),
+              dropdownColor: isDark ? AppColors.cardDark : Colors.white,
+              items: _availableYears.map((y) => DropdownMenuItem(value: y, child: Text(y.toString()))).toList(),
+              onChanged: (val) {
+                if (val != null && val != _selectedYear) {
+                  setState(() => _selectedYear = val);
+                  _fetchLaporan();
+                }
+              },
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
 
         // --- Compact Summary Strip ---
@@ -1323,6 +1391,30 @@ class _LaporanViewState extends ConsumerState<_LaporanView> {
               ),
             ),
           ),
+
+        // --- Download PDF Button (bottom right) ---
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            ElevatedButton.icon(
+              onPressed: _isDownloading ? null : _downloadPdf,
+              icon: _isDownloading
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.picture_as_pdf, size: 16, color: Colors.white),
+              label: Text(
+                _isDownloading ? 'Mengunduh...' : 'Download PDF',
+                style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
