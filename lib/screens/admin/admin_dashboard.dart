@@ -285,24 +285,38 @@ class _ManageUsersView extends ConsumerStatefulWidget {
 
 class _ManageUsersViewState extends ConsumerState<_ManageUsersView> {
   void _openAddUserDialog() {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (context) => const _UserFormDialog(),
-    ).then((_) => ref.invalidate(usersListProvider));
+    ).then((result) {
+      if (result == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil menambah pengguna baru'), backgroundColor: AppColors.success));
+      }
+      ref.invalidate(usersListProvider);
+    });
   }
 
   void _openEditUserDialog(UserModel user) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (context) => _UserFormDialog(user: user),
-    ).then((_) => ref.invalidate(usersListProvider));
+    ).then((result) {
+      if (result == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil mengubah data pengguna'), backgroundColor: AppColors.success));
+      }
+      ref.invalidate(usersListProvider);
+    });
   }
 
   void _openResetPasswordDialog(UserModel user) {
-    showDialog(
+    showDialog<bool>(
       context: context,
       builder: (context) => _ResetPasswordDialog(user: user),
-    );
+    ).then((result) {
+      if (result == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password berhasil direset. Silakan infokan password sementara kepada pengguna.'), backgroundColor: AppColors.success));
+      }
+    });
   }
 
   void _deleteUser(String id) async {
@@ -323,7 +337,16 @@ class _ManageUsersViewState extends ConsumerState<_ManageUsersView> {
     );
 
     if (confirm == true) {
-      await ref.read(databaseServiceProvider).deleteUser(id);
+      try {
+        await ref.read(databaseServiceProvider).deleteUser(id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil menghapus pengguna'), backgroundColor: AppColors.success));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menghapus pengguna: $e'), backgroundColor: AppColors.error));
+        }
+      }
       ref.invalidate(usersListProvider);
     }
   }
@@ -445,6 +468,7 @@ class _ResetPasswordDialogState extends ConsumerState<_ResetPasswordDialog> {
   final _formKey = GlobalKey<FormState>();
   final _tempPasswordController = TextEditingController();
   bool _isSaving = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -456,6 +480,7 @@ class _ResetPasswordDialogState extends ConsumerState<_ResetPasswordDialog> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isSaving = true;
+        _errorMessage = null;
       });
 
       try {
@@ -478,13 +503,8 @@ class _ResetPasswordDialogState extends ConsumerState<_ResetPasswordDialog> {
         if (mounted) {
           setState(() {
             _isSaving = false;
+            _errorMessage = 'Gagal mereset password: $e';
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal mereset password: $e'),
-              backgroundColor: AppColors.error,
-            ),
-          );
         }
       }
     }
@@ -503,6 +523,20 @@ class _ResetPasswordDialogState extends ConsumerState<_ResetPasswordDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.error),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                  ),
                 Text(
                   'Atur password sementara untuk ${widget.user.namaLengkap} (${widget.user.username}). Pengguna akan dipaksa untuk mengganti password mereka pada login berikutnya.',
                   style: const TextStyle(fontSize: 13, height: 1.4),
@@ -576,6 +610,7 @@ class _UserFormDialogState extends ConsumerState<_UserFormDialog> {
   late UserRole _role;
   late TipePelanggan _tipePelanggan;
   bool _isSaving = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -603,6 +638,7 @@ class _UserFormDialogState extends ConsumerState<_UserFormDialog> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isSaving = true;
+        _errorMessage = null;
       });
 
       try {
@@ -641,19 +677,22 @@ class _UserFormDialogState extends ConsumerState<_UserFormDialog> {
         }
 
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
           setState(() {
             _isSaving = false;
+            
+            String errorMessage = 'Gagal menyimpan pengguna: $e';
+            final errorStr = e.toString().toLowerCase();
+            if (errorStr.contains('already registered') || 
+                errorStr.contains('already exists') || 
+                errorStr.contains('duplicate key value violates unique constraint')) {
+              errorMessage = 'Email atau username sudah digunakan oleh data yang sudah ada.';
+            }
+            _errorMessage = errorMessage;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal menyimpan pengguna: $e'),
-              backgroundColor: AppColors.error,
-            ),
-          );
         }
       }
     }
@@ -673,6 +712,20 @@ class _UserFormDialogState extends ConsumerState<_UserFormDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.error),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                  ),
                 InputField(
                   label: 'Nama Lengkap',
                   controller: _namaController,
@@ -697,7 +750,17 @@ class _UserFormDialogState extends ConsumerState<_UserFormDialog> {
                     hint: 'Email untuk login (misal: budi@gmail.com)',
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    validator: (v) => v!.trim().isEmpty ? 'Email tidak boleh kosong' : null,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Email tidak boleh kosong';
+                      }
+                      // Basic email validation regex
+                      final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                      if (!emailRegex.hasMatch(v.trim())) {
+                        return 'Format email tidak valid (contoh: budi@gmail.com)';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   InputField(
@@ -1095,7 +1158,18 @@ class _LaporanViewState extends ConsumerState<_LaporanView> {
   }
 
   Future<void> _downloadPdf() async {
-    if (_reports.isEmpty || _selectedYear == null) return;
+    if (_selectedYear == null) return;
+    if (_reports.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Belum ada data laporan untuk tahun tersebut.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+      return;
+    }
     setState(() => _isDownloading = true);
     try {
       await PdfReportService.generateAndDownloadYearlyReport(_reports, _selectedYear!);
